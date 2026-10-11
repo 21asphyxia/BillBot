@@ -48,12 +48,12 @@ you're proposing and why the more durable options don't apply.
    mis-weighted signal in `proto_mapper_assembly/matching/` (`score_constraints.py`,
    `score_lookup.py`, `score_preparation.py`, `static_scores.py`, `runtime_rescore.py`),
    `affinities/`, or `scoring/message_scoring.py`. Diagnose with:
-   - `single_pair_match_result.py --obf <O> --non-obf <N>` — breaks down the score for one
+   - `uv run python -m scripts.mapping.single_pair_match_result --obf <O> --non-obf <N>` — breaks down the score for one
      specific pair, showing which signal drove it.
-   - `group_match_candidates.py --incoherent` — lists non-obf `.proto` files whose messages are
+   - `uv run python -m scripts.mapping.group_match_candidates --incoherent` — lists non-obf `.proto` files whose messages are
      split across several obf groups (a scattered file means the mapping is wrong, not that the
      file moved; nothing written, read-only).
-   - `group_match_candidates.py --non-obf <X> --members` — for one file, ranks the obf groups it
+   - `uv run python -m scripts.mapping.group_match_candidates --non-obf <X> --members` — for one file, ranks the obf groups it
      could belong to and shows the message-level assignment inside the best candidate, so you can
      see which claim is a real pin vs. an algorithm guess.
    Fix the metric/heuristic (add a missing signal, correct a wrong one, adjust a weight/threshold
@@ -64,7 +64,7 @@ you're proposing and why the more durable options don't apply.
 2. **Field proved missing and not dead.** The obf side carries a field with no non-obf
    counterpart, the parent message's own mapping is otherwise solid, and the field is confirmed
    live — not just a decode gap — via
-   `check_zero_access_fields.py --unknown-fields` (classified `active`, not
+   `uv run python -m scripts.mapping.check_zero_access_fields --unknown-fields` (classified `active`, not
    `dead_candidate`/`inconclusive`: a non-default runtime value in the log plus an access recorded
    in `datas/proto_mapper/{obf,non_obf}/proto_accesses.json`, IDA trace). If proved, add the field to the non-obf `.proto`
    definition (pins can't add fields that don't exist non-obf). If the parent message's mapping is
@@ -74,11 +74,11 @@ you're proposing and why the more durable options don't apply.
    shape, uncertain message mapping, one-off). Add to `pinned_pairs.json`.
 
 For any change to `.proto`, apply in this order:
-`uv run python main.py synchronize-protos` → edit `pinned_pairs.json` (by hand, or live via
-sandbox, step 4) → `uv run python main.py synchronize-protos` again, so the export stores the
+`uv run python -m scripts.maintenance.main synchronize-protos` → edit `pinned_pairs.json` (by hand, or live via
+sandbox, step 4) → `uv run python -m scripts.maintenance.main synchronize-protos` again, so the export stores the
 field-mapping signatures the new pin produced.
 
-For any change to `pinned_pairs.json` then run DBDofusUnity/main run-pipeline
+For any change to `pinned_pairs.json` then run uv run python -m scripts.maintenance.main run-pipeline
 
 ## 4. Live-verify if the mapping blocks the bot
 

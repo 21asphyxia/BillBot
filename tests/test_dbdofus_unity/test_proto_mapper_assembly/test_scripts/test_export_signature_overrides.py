@@ -58,7 +58,7 @@ from DBDofusUnity.proto_mapper_assembly.interfaces.signature_overrides import (
     SignatureOverridesFile,
 )
 from DBDofusUnity.proto_mapper_assembly.scoring.message_scoring import compute_message_similarity
-from DBDofusUnity.proto_mapper_assembly.scripts.export_signature_overrides import (
+from scripts.mapping.export_signature_overrides import (
     _build_obf_field_binding_by_non_obf_property_name,
     main,
 )
@@ -1016,15 +1016,15 @@ class TestManualNewDumpCs:
 
             with (
                 patch(
-                    "DBDofusUnity.proto_mapper_assembly.scripts.export_signature_overrides.build_signature_overrides",
+                    "scripts.mapping.export_signature_overrides.build_signature_overrides",
                     return_value=generated_overrides,
                 ),
                 patch(
-                    "DBDofusUnity.proto_mapper_assembly.scripts.export_signature_overrides.NON_OBF_SIGNATURE_OVERRIDES_FILE",
+                    "scripts.mapping.export_signature_overrides.NON_OBF_SIGNATURE_OVERRIDES_FILE",
                     overrides_path,
                 ),
                 patch(
-                    "DBDofusUnity.proto_mapper_assembly.scripts.export_signature_overrides.NON_OBF_NEW_DUMP_CS_FILE",
+                    "scripts.mapping.export_signature_overrides.NON_OBF_NEW_DUMP_CS_FILE",
                     new_dump_cs_path,
                 ),
                 patch(
@@ -1051,11 +1051,11 @@ class TestManualNewDumpCs:
 
             with (
                 patch(
-                    "DBDofusUnity.proto_mapper_assembly.scripts.export_signature_overrides.build_signature_overrides",
+                    "scripts.mapping.export_signature_overrides.build_signature_overrides",
                     return_value=generated_overrides,
                 ) as build_signature_overrides,
                 patch(
-                    "DBDofusUnity.proto_mapper_assembly.scripts.export_signature_overrides.NON_OBF_NEW_DUMP_CS_FILE",
+                    "scripts.mapping.export_signature_overrides.NON_OBF_NEW_DUMP_CS_FILE",
                     new_dump_cs_path,
                 ),
                 patch(

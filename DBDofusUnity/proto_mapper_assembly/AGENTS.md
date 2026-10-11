@@ -2,10 +2,10 @@
 
 ## Workflow
 
-Run commands from `DBDofusUnity/`.
-After changing `datas/protos/non_obf/game`, add confirmed pairs to `datas/proto_mapper/pinned_pairs.json` and run `uv run python main.py synchronize-protos`.
+Run commands from the repository root.
+After changing `DBDofusUnity/datas/protos/non_obf/game`, add confirmed pairs to `DBDofusUnity/datas/proto_mapper/pinned_pairs.json` and run `uv run python -m scripts.maintenance.main synchronize-protos`.
 Repeat to persist field signatures; nested messages or changed shapes may need a third pass. Remove incompatible signature overrides first.
-`update-maj` clears pins and captures; export overrides again after re-pinning with `uv run python proto_mapper_assembly/scripts/export_signature_overrides.py`.
+`update-maj` clears pins and captures; export overrides again after re-pinning with `uv run python -m scripts.mapping.export_signature_overrides`.
 
 ## Mapping rules
 

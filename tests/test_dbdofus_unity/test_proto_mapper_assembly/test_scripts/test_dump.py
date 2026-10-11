@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from DBDofusUnity.proto_mapper_assembly.scripts import dump as dump_script
+from scripts.mapping import dump as dump_script
 
 
 class TestDumpScript:

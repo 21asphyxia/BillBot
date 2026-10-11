@@ -3,7 +3,7 @@ import pytest
 from DBDofusUnity.proto_mapper_assembly.interfaces.function_access_signature import ReturnRole
 from DBDofusUnity.proto_mapper_assembly.scoring import enum_similarity, message_scoring, signature_scoring
 from DBDofusUnity.proto_mapper_assembly.matching import score_constraints
-from DBDofusUnity.proto_mapper_assembly.scripts.benchmark_ablation import ablate_signals
+from scripts.mapping.benchmark_ablation import ablate_signals
 from tests.fixtures.proto_mapper.signatures import builder_function_access_signature
 
 

@@ -1,7 +1,7 @@
 ﻿from tests.fixtures.proto_mapper import ida_environment  # noqa: F401
 
-from DBDofusUnity.proto_mapper_assembly.scripts.ida_tracer_lib.simulation.cfg_stats import build_cfg_stats
-from DBDofusUnity.proto_mapper_assembly.scripts.ida_tracer_lib.state.basic_block import BasicBlock, FunctionScanPlan
+from scripts.mapping.ida_tracer_lib.simulation.cfg_stats import build_cfg_stats
+from scripts.mapping.ida_tracer_lib.state.basic_block import BasicBlock, FunctionScanPlan
 
 
 def _scan_plan(successors_by_block: dict[int, tuple[int, ...]], *, entry: int) -> FunctionScanPlan:

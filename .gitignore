@@ -17,6 +17,7 @@ venv/
 htmlcov/
 coverage.xml
 build/
+!scripts/build
 dist/
 *.spec
 !ThisIsBillBot.spec

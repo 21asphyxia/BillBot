@@ -35,7 +35,7 @@ def version_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path
     ("installed", "compatible", "latest", "message"),
     [
         (VERSION, VERSION, VERSION, None),
-        (VERSION, VERSION, NEW_VERSION, "Dofus is out of date"),
+        (VERSION, VERSION, NEW_VERSION, "The bot is out of date"),
         (NEW_VERSION, VERSION, NEW_VERSION, "The bot is out of date"),
         (VERSION, NEW_VERSION, VERSION, "The bot is out of date"),
     ],

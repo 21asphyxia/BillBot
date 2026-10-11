@@ -4,7 +4,7 @@ from tests.fixtures.proto_mapper.signatures import access_message_signature
 
 from DBDofusUnity.proto_mapper_assembly.interfaces.assembly_access import MessageAccessSignature
 from DBDofusUnity.proto_mapper_assembly.matching.workspace import build_matching_workspace
-from DBDofusUnity.proto_mapper_assembly.scripts.group_match_candidates import (
+from scripts.mapping.group_match_candidates import (
     GroupAnalysis,
     GroupClaim,
     ObfGroupState,

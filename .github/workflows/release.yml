@@ -36,7 +36,7 @@ jobs:
       - name: Build Windows package
         run: uv run poe package
       - name: Validate packaged startup and shutdown
-        run: uv run python scripts/validate_package.py dist/ThisIsBillBot
+        run: uv run python -m scripts.packaging.validate_package dist/ThisIsBillBot
       - name: Create release archive
         shell: pwsh
         run: |

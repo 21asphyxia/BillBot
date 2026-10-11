@@ -36,7 +36,7 @@ from DBDofusUnity.proto_mapper_assembly.interfaces.new_dump_cs import NewDumpCSF
 from DBDofusUnity.proto_mapper_assembly.interfaces.pinned_pairs import PinnedPair, PinnedPairsConfig
 from DBDofusUnity.proto_mapper_assembly.interfaces.signature_overrides import SignatureOverridesFile
 from DBDofusUnity.proto_mapper_assembly.parsers._clr_type_utils import normalize_clr_type
-from DBDofusUnity.proto_mapper_assembly.scripts.export_signature_overrides import build_signature_overrides
+from scripts.mapping.export_signature_overrides import build_signature_overrides
 
 PINNED_PAIRS_PATH = Path("test_pinned_pairs.json")
 
@@ -273,13 +273,13 @@ def run_build_signature_overrides(
     with ExitStack() as stack:
         stack.enter_context(
             patch(
-                "DBDofusUnity.proto_mapper_assembly.scripts.export_signature_overrides.load_pinned_pairs",
+                "scripts.mapping.export_signature_overrides.load_pinned_pairs",
                 return_value=pinned,
             )
         )
         stack.enter_context(
             patch(
-                "DBDofusUnity.proto_mapper_assembly.scripts.export_signature_overrides.parse_messages",
+                "scripts.mapping.export_signature_overrides.parse_messages",
                 side_effect=[
                     obf_messages or [signature.dump_cs_msg for signature in obf_signatures.values()],
                     non_obf_messages if non_obf_messages is not None else [],
@@ -288,19 +288,19 @@ def run_build_signature_overrides(
         )
         stack.enter_context(
             patch(
-                "DBDofusUnity.proto_mapper_assembly.scripts.export_signature_overrides.load_message_access_signatures_from_messages",
+                "scripts.mapping.export_signature_overrides.load_message_access_signatures_from_messages",
                 return_value=obf_signatures,
             )
         )
         stack.enter_context(
             patch(
-                "DBDofusUnity.proto_mapper_assembly.scripts.export_signature_overrides.load_game_mappings_document",
+                "scripts.mapping.export_signature_overrides.load_game_mappings_document",
                 return_value=game_mappings or GameMappingsDocument(root={}),
             )
         )
         stack.enter_context(
             patch(
-                "DBDofusUnity.proto_mapper_assembly.scripts.export_signature_overrides.load_new_dump_cs_messages",
+                "scripts.mapping.export_signature_overrides.load_new_dump_cs_messages",
                 return_value=NewDumpCSFile(
                     root=bootstrap_messages
                     if bootstrap_messages is not None
@@ -310,7 +310,7 @@ def run_build_signature_overrides(
         )
         stack.enter_context(
             patch(
-                "DBDofusUnity.proto_mapper_assembly.scripts.export_signature_overrides.parse_access_trace_document",
+                "scripts.mapping.export_signature_overrides.parse_access_trace_document",
                 side_effect=[
                     AccessTraceDocument(
                         functions_by_address={},

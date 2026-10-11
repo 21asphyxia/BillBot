@@ -8,21 +8,21 @@ from DBDofusUnity.proto_mapper_assembly.interfaces.assembly_access import Access
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_category import FieldCategoryEnum
 from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCSMessageField
 from DBDofusUnity.proto_mapper_assembly.interfaces.il2cpp_json import MethodDefinition
-from DBDofusUnity.proto_mapper_assembly.scripts.ida_tracer_lib.lookups.accessor_candidate import (
+from scripts.mapping.ida_tracer_lib.lookups.accessor_candidate import (
     AccessorCandidate,
 )
-from DBDofusUnity.proto_mapper_assembly.scripts.ida_tracer_lib.signatures.parser import (
+from scripts.mapping.ida_tracer_lib.signatures.parser import (
     extract_proto_parameter_seeds,
 )
-from DBDofusUnity.proto_mapper_assembly.scripts.ida_tracer_lib.simulation.scan_engine import (
+from scripts.mapping.ida_tracer_lib.simulation.scan_engine import (
     scan_function_instructions,
 )
-from DBDofusUnity.proto_mapper_assembly.scripts.ida_tracer_lib.state.basic_block import (
+from scripts.mapping.ida_tracer_lib.state.basic_block import (
     BasicBlock,
     DecodedInstruction,
     FunctionScanPlan,
 )
-from DBDofusUnity.proto_mapper_assembly.scripts.ida_tracer_lib.state.types import (
+from scripts.mapping.ida_tracer_lib.state.types import (
     RegisterState,
     StackFrameState,
 )
@@ -76,7 +76,7 @@ def call(address: int) -> Instruction:
 @pytest.fixture
 def scan(monkeypatch: pytest.MonkeyPatch) -> Callable[..., list[AccessEntry]]:
     import idautils
-    from DBDofusUnity.proto_mapper_assembly.scripts.ida_tracer_lib.simulation.interproc_calls import (
+    from scripts.mapping.ida_tracer_lib.simulation.interproc_calls import (
         _invokes_interface_slot,
     )
 

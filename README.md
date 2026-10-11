@@ -1,19 +1,61 @@
 # Bill
 
-A Dofus Unity bot for Windows with a graphical interface for managing multiple
-accounts, running harvesting, combat, or crafting activities, and scheduling them.
+Automate your Dofus Unity activities from one Windows interface. Manage multiple
+accounts, run harvesting, combat, or crafting activities, and schedule your sessions.
 
-![](./resources/screenshots/bot.gif)
+**[Download for Windows](https://github.com/Valentin-alix/ThisIsBillBot/releases/latest)**
+· [Getting started](#getting-started) · [Configuration guide](docs/configuration.md)
 
-![](./resources/screenshots/socket.png)
+See Bill in action: harvesting in Dofus Unity with the bot's live monitoring
+alongside the game.
+
+![Bill automating harvesting with Dofus Unity and live monitoring side by side](./resources/screenshots/bot.gif)
 
 ## What you can do
 
-- **Control your accounts**: choose an activity and an area, then start or stop the bot from the interface.
-- **Schedule sessions**: define several time slots per day and assign accounts to a schedule.
-- **Prepare crafts**: search supported professions for recipes and add them to the crafting list.
-- **Configure automation**: choose behaviors and manage email accounts and proxies in Settings.
-- **Monitor operations**: review errors on the **Activity** page.
+### Harvest and keep track of your character
+
+Choose an activity and an area, then start or pause it from the account controls.
+The **Farmer** view brings your character's level, kamas, current area, and map
+together, with tabs for the character, world, inventory, and bank.
+
+![Farmer view showing the current map, character level, kamas, and account controls](./resources/screenshots/farmer.png)
+
+### Run with or without the game client
+
+Use **Socket** mode to communicate directly with the game servers without opening
+the Dofus Unity client.
+
+![Bill running in Socket mode with the current map displayed in the interface](./resources/screenshots/socket.png)
+
+### Prepare your crafting list
+
+Search supported professions for recipes and add them to your crafting list.
+Keep the recipes you want to make together in the **Craft** view.
+
+![Craft view showing selected recipes and recipe search results](./resources/screenshots/craft.png)
+
+### Choose what Bill automates
+
+Configure behaviors from **Settings**, including automatic combat, marketplace
+sales, and crafting. Define several time slots per day, assign accounts to
+schedules, and manage email accounts and proxies from the same page.
+
+![Settings page showing automation options and tabs for schedules, accounts, email, and proxies](./resources/screenshots/settings.png)
+
+### Stay informed about your sessions
+
+Review recent events, warnings, and errors on the **Activity** page, with a filter
+by account. Inspect quarantined items and decide whether to restore or delete them.
+
+![Activity page showing account event history and quarantined item controls](./resources/screenshots/activity.png)
+
+### Follow the route between maps
+
+See where your character is heading in the **World** view. The route appears
+directly on the map overview, making it easy to follow movements between areas.
+
+![World view displaying the character's route between maps](./resources/screenshots/optimized_path.png)
 
 ## What the project includes
 
@@ -76,7 +118,22 @@ schedules, email accounts, proxies, and services.
 ## Development
 
 The bot code is in `src/`, the launcher is in `AnkamaLauncherEmulator/`, and the
-data and mapping tools are in `DBDofusUnity/`.
+data and mapping libraries are in `DBDofusUnity/`. Standalone tools live in
+`scripts/`, grouped under `packaging/`, `launcher/`, `maintenance/`, `mapping/`,
+and `data/`, with the Vulture whitelist at `scripts/vulture_whitelist.py`.
+Run Python tools from the
+repository root, for example `uv run python -m scripts.maintenance.main --help`.
+
+### Inspect messages and logs
+
+The **Debug** view lets you inspect client and server messages, compare obfuscated
+and unobfuscated fields, and search the bot's logs. It brings protocol inspection
+and behavior diagnostics into the interface when you need to investigate a session.
+
+To start the standalone sniffer from the repository root, run
+`uv run python -m scripts.mapping.sniffer`.
+
+![Debug view showing network messages, protocol field comparison, and searchable logs](./resources/screenshots/debug.png)
 
 ### Build UABEA DLLs
 
@@ -85,7 +142,7 @@ and **Visual Studio C++ build tools (v145)**, then run this command from the
 repository root in **Git Bash on Windows**:
 
 ```bash
-bash DBDofusUnity/build-tools.sh
+bash scripts/packaging/build-tools.sh
 ```
 
 The script builds UABEA, Il2CppInspector, and protodec.

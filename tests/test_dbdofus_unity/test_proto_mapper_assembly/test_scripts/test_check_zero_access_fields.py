@@ -30,7 +30,7 @@ from tests.fixtures.proto_mapper.signatures import (
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_category import FieldCategoryEnum
 from DBDofusUnity.proto_mapper_assembly.interfaces.game_mappings import GameMappingsDocument
 from DBDofusUnity.proto_mapper_assembly.helpers.non_obf_names import build_filtered_message_namespace
-from DBDofusUnity.proto_mapper_assembly.scripts.check_zero_access_fields import (
+from scripts.mapping.check_zero_access_fields import (
     audit_unknown_fields,
     CoreMethodEvidence,
     collect_zero_access_explanations,

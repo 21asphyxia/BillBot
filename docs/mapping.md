@@ -29,21 +29,21 @@ signals:
 The pipeline searches for a consistent assignment between the two protocols and
 writes, among other files:
 
-- `datas/protos/game_mappings.json`, used by the bot;
-- `datas/protos/game_mappings_detailed.json`, containing scores, confidence indicators, and unmatched fields;
-- `datas/proto_mapper/pinned_pairs.json`, preserving manually confirmed mappings between pipeline runs.
+- `DBDofusUnity/datas/protos/game_mappings.json`, used by the bot;
+- `DBDofusUnity/datas/protos/game_mappings_detailed.json`, containing scores, confidence indicators, and unmatched fields;
+- `DBDofusUnity/datas/proto_mapper/pinned_pairs.json`, preserving manually confirmed mappings between pipeline runs.
 
 The `game_mappings*.json` files, Python protobuf bindings,
-`datas/proto_mapper/excluded_non_obf.json`, and
-`datas/proto_mapper/non_obf/new_dump_cs.json` are generated. Do not edit them
+`DBDofusUnity/datas/proto_mapper/excluded_non_obf.json`, and
+`DBDofusUnity/datas/proto_mapper/non_obf/new_dump_cs.json` are generated. Do not edit them
 directly: update their sources, add confirmed pairs, and regenerate them.
 
 ## Processing a new build
 
-Run commands from `DBDofusUnity/`:
+Run commands from the repository root:
 
 ```powershell
-uv run python main.py update-maj
+uv run python -m scripts.maintenance.main update-maj
 ```
 
 This command updates game data, extracts the new protocol, runs the IDA analysis
@@ -54,19 +54,19 @@ detects an assembly change, it archives the previous runtime capture and resets
 To regenerate IDA traces separately, use:
 
 ```powershell
-uv run python main.py ida
+uv run python -m scripts.maintenance.main ida
 ```
 
 Then run the bot and sniffer through flows that produce the messages you need to
 verify. These observations populate
-`datas/proto_mapper/instancied_msg_infos.json`. Rerun the pipeline after obtaining
+`DBDofusUnity/datas/proto_mapper/instancied_msg_infos.json`. Rerun the pipeline after obtaining
 useful captures:
 
 ```powershell
-uv run python main.py run-pipeline
+uv run python -m scripts.maintenance.main run-pipeline
 ```
 
-Review `datas/protos/game_mappings_detailed.json` first to find low-confidence
+Review `DBDofusUnity/datas/protos/game_mappings_detailed.json` first to find low-confidence
 mappings, messages observed at runtime, and unmatched fields. Confirm a pair only
 when runtime observations, protobuf structure, and static analysis agree.
 
@@ -74,8 +74,12 @@ After correcting unobfuscated definitions or adding confirmed pairs, regenerate
 all unobfuscated artifacts and the mapping:
 
 ```powershell
-uv run python main.py synchronize-protos
+uv run python -m scripts.maintenance.main synchronize-protos
 ```
+
+The synchronization rebuilds every non-obfuscated definition, preserves known
+field offsets, reports inconsistent nesting, and removes references to deleted
+messages from exclusions, pins, signature overrides, and mappings.
 
 Run this command a second time when the first pass discovers new field mappings,
 so their signatures can be persisted. Nested messages or changed structures may
@@ -85,7 +89,7 @@ Because `update-maj` resets pins, export signature overrides again after re-pinn
 confirmed pairs:
 
 ```powershell
-uv run python proto_mapper_assembly/scripts/export_signature_overrides.py
+uv run python -m scripts.mapping.export_signature_overrides
 ```
 
 ## Pinning a message pair
@@ -97,7 +101,7 @@ The interface provides the simplest method:
 3. Double-click its row.
 4. Choose the proposed fully qualified unobfuscated message name in the search field, then save.
 
-The sniffer adds the pair to `datas/proto_mapper/pinned_pairs.json`. It can also
+The sniffer adds the pair to `DBDofusUnity/datas/proto_mapper/pinned_pairs.json`. It can also
 be added manually in this form:
 
 ```json
@@ -167,8 +171,8 @@ From the repository root, run the baseline and one experimental removal in
 separate processes:
 
 ```powershell
-uv run python -m DBDofusUnity.proto_mapper_assembly.scripts.benchmark_cross_build --mode current --json baseline.json
-uv run python -m DBDofusUnity.proto_mapper_assembly.scripts.benchmark_cross_build --mode current --without opcode_histogram --json without-opcodes.json
+uv run python -m scripts.mapping.benchmark_cross_build --mode current --json baseline.json
+uv run python -m scripts.mapping.benchmark_cross_build --mode current --without opcode_histogram --json without-opcodes.json
 ```
 
 `--without` accepts multiple signals for cumulative experiments; `--help` lists

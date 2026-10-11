@@ -4,7 +4,7 @@ import pytest
 
 from DBDofusUnity.proto_mapper_assembly.interfaces.game_mappings import GameMappingsDocument
 from DBDofusUnity.proto_mapper_assembly.interfaces.pinned_pairs import PinnedPair, PinnedPairsConfig
-from DBDofusUnity.proto_mapper_assembly.scripts import benchmark_cross_build as benchmark
+from scripts.mapping import benchmark_cross_build as benchmark
 from tests.fixtures.proto_mapper.pipeline_builders import detailed_game_mapping_entry
 
 

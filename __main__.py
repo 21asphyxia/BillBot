@@ -12,7 +12,7 @@ if (
     and getattr(sys, "frozen", False)
     and os.environ.pop("THISISBILLBOT_INSTALL_UPDATE", None)
 ):
-    from scripts.install_update import main as install_update
+    from scripts.packaging.install_update import main as install_update
 
     install_update()
     raise SystemExit(0)
