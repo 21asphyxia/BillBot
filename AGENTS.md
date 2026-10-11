@@ -1,4 +1,4 @@
-# ThisIsBillBot
+# BillBot
 
 Python 3.12, Windows only. Bot: `src/`; launcher: `AnkamaLauncherEmulator/`; protocol tools: `DBDofusUnity/`.
 

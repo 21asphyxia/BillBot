@@ -3,7 +3,7 @@
 Windows bot for Dofus Unity with harvesting, combat, crafting, multiple accounts,
 and session scheduling. Built with Python, PyQt6, and FluentWidgets.
 
-[Download for Windows](https://github.com/Valentin-alix/ThisIsBillBot/releases/latest)
+[Download for Windows](https://github.com/Valentin-alix/BillBot/releases/latest)
 
 ![Bill running alongside Dofus Unity](./resources/screenshots/bot.gif)
 
@@ -20,8 +20,8 @@ and session scheduling. Built with Python, PyQt6, and FluentWidgets.
 
 ### Download
 
-Extract the Windows archive from the [latest release](https://github.com/Valentin-alix/ThisIsBillBot/releases/latest)
-and run `ThisIsBillBot.exe`.
+Extract the Windows archive from the [latest release](https://github.com/Valentin-alix/BillBot/releases/latest)
+and run `BillBot.exe`.
 
 ### From source
 

@@ -20,7 +20,7 @@ build/
 !scripts/build
 dist/
 *.spec
-!ThisIsBillBot.spec
+!BillBot.spec
 *.egg-info/
 
 # Local environment and editor settings

@@ -79,12 +79,12 @@ def validate_package(folder: Path) -> None:
             check=True,
             timeout=60,
         )
-        log_path = profile / "AppData/Local/ThisIsBillBot/resources/diagnostics.log"
+        log_path = profile / "AppData/Local/BillBot/resources/diagnostics.log"
         startup = subprocess.STARTUPINFO()
         startup.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         startup.wShowWindow = 0
         process = subprocess.Popen(
-            [str(package / "ThisIsBillBot.exe"), "--no-auto"],
+            [str(package / "BillBot.exe"), "--no-auto"],
             cwd=root,
             env=environment,
             startupinfo=startup,

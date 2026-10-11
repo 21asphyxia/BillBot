@@ -8,20 +8,20 @@ from pathlib import Path
 from typing import Annotated
 from zipfile import BadZipFile, ZipFile
 
-import requests
 import psutil
+import requests
 from filelock import FileLock, Timeout
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
-from src.services.game_version import GameVersion, VERSION_PATH
+from src.services.game_version import VERSION_PATH, GameVersion
 from src.utils.project_paths import BUNDLE_ROOT, PROJECT_ROOT, USER_DATA_ROOT
 from src.utils.runtime_support import RuntimeSetupError
 
-RELEASE_URL = "https://api.github.com/repos/Valentin-alix/ThisIsBillBot/releases/latest"
+RELEASE_URL = "https://api.github.com/repos/Valentin-alix/BillBot/releases/latest"
 SKIP_UPDATE_ENV = "THISISBILLBOT_SKIP_UPDATE_ONCE"
 STATUS_PATH = USER_DATA_ROOT / "update-error.txt"
 UPDATE_ROOT = PROJECT_ROOT / ".billbot-update"
-HEADERS = {"Accept": "application/vnd.github+json", "User-Agent": "ThisIsBillBot"}
+HEADERS = {"Accept": "application/vnd.github+json", "User-Agent": "BillBot"}
 
 
 class ReleaseAsset(BaseModel):
@@ -30,7 +30,7 @@ class ReleaseAsset(BaseModel):
     browser_download_url: Annotated[
         str,
         Field(
-            pattern=r"^https://github\.com/Valentin-alix/ThisIsBillBot/releases/download/",
+            pattern=r"^https://github\.com/Valentin-alix/BillBot/releases/download/",
         ),
     ]
     digest: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")] | None = None
@@ -80,16 +80,16 @@ def extract_archive(
             if current != percentage:
                 progress(f"Preparing installation... {current}%")
                 percentage = current
-    bundle = root / "ThisIsBillBot"
-    if not (bundle / "ThisIsBillBot.exe").is_file():
+    bundle = root / "BillBot"
+    if not (bundle / "BillBot.exe").is_file():
         raise RuntimeSetupError("The release archive has no executable.")
     if (bundle / "_internal/VERSION").read_text(encoding="utf-8").strip() != expected_version:
         raise RuntimeSetupError("The extracted bundle has an inconsistent Dofus version.")
 
 
 def launch_installer() -> None:
-    installer = UPDATE_ROOT / "ThisIsBillBot.exe"
-    shutil.copyfile(PROJECT_ROOT / "ThisIsBillBot.exe", installer)
+    installer = UPDATE_ROOT / "BillBot.exe"
+    shutil.copyfile(PROJECT_ROOT / "BillBot.exe", installer)
     runtime = UPDATE_ROOT / "_internal"
     runtime.mkdir()
     # Only copy Python's runtime; game data, Qt and Chromium are unnecessary here.
@@ -125,7 +125,7 @@ def prepare_update(progress: Callable[[str], None]) -> bool:
             if remote_numbers <= local_numbers:
                 return False
             asset = next(
-                (asset for asset in release.assets if asset.name == f"ThisIsBillBot-{release.name}.zip"), None
+                (asset for asset in release.assets if asset.name == f"BillBot-{release.name}.zip"), None
             )
             if asset is None:
                 raise RuntimeSetupError("The release has no Windows archive.")
@@ -156,7 +156,7 @@ def recover_update_staging() -> None:
     if not root.exists():
         return
     # The installer may still be waiting for this process to release the update lock.
-    installer = root / "ThisIsBillBot.exe"
+    installer = root / "BillBot.exe"
     for process in psutil.process_iter(["exe"]):
         executable = process.info["exe"]
         if executable and Path(executable).resolve() == installer:

@@ -12,11 +12,11 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "AnkamaLauncherEmulator"))
 
 import requests
-from pydantic import TypeAdapter, ValidationError
-
 from ankama_launcher_emulator.installation.cytrus import cytrus_download
 from ankama_launcher_emulator.interfaces.ankama_release import ReleaseJson
 from ankama_launcher_emulator.utils.environment import RELEASE_JSON_PATH
+from pydantic import TypeAdapter, ValidationError
+
 from DBDofusUnity.consts import OBF_GAME_DIR, require_game_toolchain
 from src.services.game_version import CYTRUS_URL, VERSION_PATH, CytrusIndex, GameVersion
 
@@ -32,7 +32,7 @@ def notify_update_completed(version: str) -> None:
         ctypes.windll.user32.MessageBoxW(
             None,
             f"update-maj terminé pour la version {version}.\n\nVeuillez vérifier manuellement le résultat.",
-            "ThisIsBillBot — Mise à jour terminée",
+            "BillBot — Mise à jour terminée",
             0x40 | 0x10000 | 0x40000,
         )
     except OSError:
@@ -73,9 +73,7 @@ def check_for_update() -> None:
 
     if compatible != latest:
         logger.info("Running update-maj for %s.", latest)
-        subprocess.run(
-            [sys.executable, "-m", "scripts.maintenance.main", "update-maj"], cwd=ROOT, check=True
-        )
+        subprocess.run([sys.executable, "-m", "scripts.maintenance.main", "update-maj"], cwd=ROOT, check=True)
         logger.info("update-maj completed for %s.", latest)
         Thread(target=notify_update_completed, args=(latest,), daemon=True).start()
 
