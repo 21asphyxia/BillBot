@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import UTC, datetime
 
@@ -28,7 +29,7 @@ async def _request_and_validate_email_certificate(
     timeout_seconds: int,
 ) -> DecipheredCertif:
     requested_at = datetime.now(UTC)
-    domain = haapi.get_security_code("EMAIL")
+    domain = await asyncio.to_thread(haapi.get_security_code, "EMAIL")
     logger.info("[OAuth] Shield security code requested (domain=%s)", domain)
 
     code = await wait_for_code_with_manual_fallback(
@@ -37,7 +38,7 @@ async def _request_and_validate_email_certificate(
     if code is None:
         raise MailboxCodeTimeoutError(f"Timed out waiting for Shield/OTP code in mailbox for {haapi.login}")
 
-    certif = haapi.validate_code(code, ZAAP_GAME_ID)
+    certif = await asyncio.to_thread(haapi.validate_code, code, ZAAP_GAME_ID)
     logger.info("[OAuth] Certificate obtained (id=%s)", certif.id)
     return certif
 
@@ -68,7 +69,7 @@ async def resolve_shield(
     if code is None:
         raise MailboxCodeTimeoutError(f"Timed out waiting for Shield/OTP code in mailbox for {haapi.login}")
 
-    certif = haapi.validate_otp(code, ZAAP_GAME_ID)
+    certif = await asyncio.to_thread(haapi.validate_otp, code, ZAAP_GAME_ID)
     logger.info("[OAuth] Certificate obtained (id=%s)", certif.id)
     return certif
 

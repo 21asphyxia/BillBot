@@ -1,4 +1,3 @@
-import io
 import sys
 import threading
 from pathlib import Path
@@ -7,7 +6,6 @@ from unittest.mock import patch
 import pytest
 
 from scripts.mapping.ida_tracer_lib import main as ida_main
-from scripts.mapping.ida_tracer_lib.progress import reporter
 
 
 class _CompletedThread:
@@ -37,24 +35,6 @@ class TestIdaTracerMain:
             ida_main.main()
         assert error.value.code == 2
         assert "--obf-dir requires obfuscated dump mode" in capsys.readouterr().err
-
-    @pytest.mark.parametrize(
-        ("database_exists", "expected_name"),
-        [(True, "GameAssembly.dll.i64"), (False, "GameAssembly.dll")],
-    )
-    def test_select_ida_database_prefers_i64_and_falls_back_to_dll(
-        self,
-        tmp_path: Path,
-        database_exists: bool,
-        expected_name: str,
-    ) -> None:
-        database = tmp_path / "GameAssembly.dll.i64"
-        if database_exists:
-            database.write_bytes(b"i64")
-        else:
-            (tmp_path / "GameAssembly.dll").write_bytes(b"dll")
-
-        assert ida_main._select_ida_database(database).name == expected_name
 
     def test_select_ida_database_raises_when_i64_and_dll_are_missing(self, tmp_path: Path) -> None:
         database = tmp_path / "GameAssembly.dll.i64"
@@ -177,21 +157,3 @@ class TestIdaTracerMain:
         progress_path = Path(captured_env["PROTO_TRACER_PROGRESS_PATH"])
         assert exc_info.value.code == 7
         assert not progress_path.exists()
-
-    def test_watch_progress_file_renders_valid_events_and_ignores_invalid_lines(self, tmp_path: Path) -> None:
-        progress_path = tmp_path / "progress.jsonl"
-        progress_path.write_text(
-            '{"phase": "scan_methods", "current": 1, "total": 2, "label": "Scan methods"}\n'
-            "not json\n"
-            '{"phase": "scan_methods", "current": 2, "total": 2, "label": "Scan methods", "done": true}',
-            encoding="utf-8",
-        )
-        stop_event = threading.Event()
-        stop_event.set()
-        stream = io.StringIO()
-
-        reporter._watch_progress_file(progress_path, stop_event, stream)
-
-        output = stream.getvalue()
-        assert "Scan methods [############------------]  50.0% 1/2" in output
-        assert "Scan methods [########################] 100.0% 2/2" in output

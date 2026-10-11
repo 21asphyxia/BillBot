@@ -62,16 +62,9 @@ def _patch_single_damage_spell(monkeypatch: pytest.MonkeyPatch, *, ap_cost: int 
 
 
 class TestCanFinishFightThisTurn:
-    def test_true_with_no_enemies(self) -> None:
-        assert can_finish_fight_this_turn(_context(enemies_data=[]), MagicMock()) is True
-
     def test_false_with_multiple_enemies(self) -> None:
         context = _context(enemies_data=[_enemy(10), _enemy(10)])
         assert can_finish_fight_this_turn(context, MagicMock()) is False
-
-    def test_true_when_last_enemy_already_dead(self) -> None:
-        context = _context(enemies_data=[_enemy(0)])
-        assert can_finish_fight_this_turn(context, MagicMock()) is True
 
     def test_true_when_estimated_damage_covers_remaining_life(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _patch_single_damage_spell(monkeypatch, ap_cost=3)

@@ -1,11 +1,15 @@
-﻿from collections import Counter
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from typing import Literal
 
 from tests.fixtures.proto_mapper.shapes import NUMBER_SHAPE
 
-from DBDofusUnity.proto_mapper_assembly.controllers.access_signatures import build_message_access_signatures_by_cls
-from DBDofusUnity.proto_mapper_assembly.controllers.message_fields import build_message_field_resolution_lookup
+from DBDofusUnity.proto_mapper_assembly.controllers.access_signatures import (
+    build_message_access_signatures_by_cls,
+)
+from DBDofusUnity.proto_mapper_assembly.controllers.message_fields import (
+    build_message_field_resolution_lookup,
+)
 from DBDofusUnity.proto_mapper_assembly.interfaces.assembly_access import (
     AccessAtomSignature,
     AccessEntry,
@@ -15,13 +19,15 @@ from DBDofusUnity.proto_mapper_assembly.interfaces.assembly_access import (
     FieldAccessSignatures,
     FunctionAccessInfo,
     FunctionAccessSignature,
-    HandlerRegistrationAccessEntry,
     MessageAccessSignature,
     ProtoAccessesInfo,
     ReturnRole,
-    TypeInfoAccessEntry,
 )
-from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCSMessage, DumpCSMessageField, FieldKey
+from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import (
+    DumpCSMessage,
+    DumpCSMessageField,
+    FieldKey,
+)
 from DBDofusUnity.proto_mapper_assembly.interfaces.enum_mapping import EnumSignatureEntry, EnumSwitchPattern
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_category import (
     FieldCategoryEnum,
@@ -29,7 +35,9 @@ from DBDofusUnity.proto_mapper_assembly.interfaces.field_category import (
     FieldTypeShape,
 )
 from DBDofusUnity.proto_mapper_assembly.interfaces.function_access_signature import CfgStats
-from DBDofusUnity.proto_mapper_assembly.interfaces.message_field_resolution_lookup import MessageFieldResolutionLookup
+from DBDofusUnity.proto_mapper_assembly.interfaces.message_field_resolution_lookup import (
+    MessageFieldResolutionLookup,
+)
 from DBDofusUnity.proto_mapper_assembly.scoring.message_scoring import StructureSimilarityContext
 
 DEFAULT_CFG_STATS = CfgStats(basic_block_count=4, edge_count=4, back_edge_count=0, max_block_depth=2)
@@ -185,79 +193,6 @@ def _declared_signature_fields(
     )
 
 
-def access_message_signature(
-    *,
-    message_cls: str = "Message",
-    file_descriptor: str = "FD",
-    function_signatures: list[FunctionAccessSignature] | None = None,
-    field_signatures: list[FieldAccessSignatures] | None = None,
-    declared_field_signatures: list[DumpCSMessageField] | dict[FieldKey, DumpCSMessageField] | None = None,
-    live_field_keys: frozenset[FieldKey] = frozenset(),
-) -> MessageAccessSignature:
-    declared_fields = _declared_signature_fields(declared_field_signatures)
-    dump_cs_msg = DumpCSMessage(
-        file_descriptor=file_descriptor,
-        name=message_cls.rsplit(".", maxsplit=1)[-1],
-        namespace=message_cls.rsplit(".", maxsplit=1)[0] or None if "." in message_cls else None,
-        fields=list(declared_fields),
-    )
-    resolved_live_field_keys = live_field_keys or frozenset(field.field_key for field in declared_fields)
-    resolved_field_signatures = _resolve_access_field_signatures(
-        declared_fields=declared_fields,
-        field_signatures=field_signatures or [],
-        live_field_keys=resolved_live_field_keys,
-    )
-    return MessageAccessSignature(
-        message_cls=message_cls,
-        file_descriptor=file_descriptor,
-        dump_cs_msg=dump_cs_msg,
-        function_signatures=function_signatures or [],
-        field_signatures=resolved_field_signatures,
-    )
-
-
-def _resolve_access_field_signatures(
-    *,
-    declared_fields: tuple[DumpCSMessageField, ...],
-    field_signatures: list[FieldAccessSignatures],
-    live_field_keys: frozenset[FieldKey],
-) -> list[FieldAccessSignatures]:
-    declared_fields_by_key = {field.field_key: field for field in declared_fields}
-    live_fields_by_offset: dict[int, list[DumpCSMessageField]] = {}
-    for live_field_key in live_field_keys:
-        live_field = declared_fields_by_key.get(live_field_key)
-        if live_field is None:
-            continue
-        live_fields_by_offset.setdefault(live_field.memory_offset, []).append(live_field)
-
-    resolved_signatures: list[FieldAccessSignatures] = []
-    covered_field_keys: set[FieldKey] = set()
-    for field_signature in field_signatures:
-        candidates = live_fields_by_offset.get(field_signature.field_offset, [])
-        resolved_field = (
-            candidates[0] if candidates else declared_fields_by_key.get(field_signature.field_key)
-        )
-        if resolved_field is None:
-            resolved_signatures.append(field_signature)
-            covered_field_keys.add(field_signature.field_key)
-            continue
-        resolved_signatures.append(field_signature.model_copy(update={"field_key": resolved_field.field_key}))
-        covered_field_keys.add(resolved_field.field_key)
-
-    for live_field_key in live_field_keys - covered_field_keys:
-        live_field = declared_fields_by_key.get(live_field_key)
-        if live_field is None:
-            continue
-        resolved_signatures.append(
-            FieldAccessSignatures(
-                field_key=live_field.field_key,
-                field_type_shape=live_field.field_type_shape,
-                accesses=[],
-            )
-        )
-    return resolved_signatures
-
-
 def builder_structure_similarity_context(
     *,
     left_signatures: list[MessageAccessSignature],
@@ -305,48 +240,6 @@ def builder_field_access_entry(
         field_offset=resolved_field_offset,
         instruction_address=instruction_address,
         index_in_function=index_in_function,
-    )
-
-
-def builder_typeinfo_access_entry(
-    *,
-    cls: str,
-    instruction_address: int = 0,
-    target_address: int = 0,
-    index_in_function: int = 0,
-) -> TypeInfoAccessEntry:
-    return TypeInfoAccessEntry(
-        type="typeinfo",
-        access_kind="load",
-        cls=cls,
-        instruction_address=instruction_address,
-        target_address=target_address,
-        index_in_function=index_in_function,
-    )
-
-
-def builder_handler_registration_access_entry(
-    *,
-    cls: str,
-    handler_method: str = "Boolean Handle(Message)",
-    method_info_address: int = 0x1000,
-    filter_typeinfo_address: int = 0x2000,
-    instruction_address: int = 0,
-    index_in_function: int = 0,
-    handler_function_address: int | None = 0x3000,
-    registration_ordinal: int = 0,
-) -> HandlerRegistrationAccessEntry:
-    return HandlerRegistrationAccessEntry(
-        type="handler_registration",
-        access_kind="register",
-        cls=cls,
-        handler_method=handler_method,
-        method_info_address=method_info_address,
-        filter_typeinfo_address=filter_typeinfo_address,
-        instruction_address=instruction_address,
-        index_in_function=index_in_function,
-        handler_function_address=handler_function_address,
-        registration_ordinal=registration_ordinal,
     )
 
 

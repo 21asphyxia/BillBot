@@ -5,7 +5,7 @@ import pytest
 import requests
 
 from ankama_launcher_emulator.exceptions import HaapiHttpError
-from ankama_launcher_emulator.haapi.haapi import Haapi
+from ankama_launcher_emulator.haapi.haapi import HAAPI_HTTP_TIMEOUT, Haapi
 from ankama_launcher_emulator.haapi.urls import ANKAMA_SHIELD_VALIDATE_CODE, ANKAMA_SHIELD_VALIDATE_OTP
 from ankama_launcher_emulator.interfaces.credentials import DecipheredCertif
 
@@ -50,6 +50,7 @@ def test_shield_validation_sends_device_identity_and_parses_certificate(
             "name": "launcher-test-user",
         },
         verify=False,
+        timeout=HAAPI_HTTP_TIMEOUT,
     )
     assert certificate == DecipheredCertif(id=42, encodedCertificate="certificate", login=client.login)
 

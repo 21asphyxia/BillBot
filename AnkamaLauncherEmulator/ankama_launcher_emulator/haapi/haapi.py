@@ -57,18 +57,20 @@ class ShieldNotRequiredError(Exception):
     pass
 
 
+def _default_dofus_subscription() -> GameSubscription:
+    return GameSubscription(
+        isFreeToPlay=True,
+        isFormerSubscriber=False,
+        isSubscribed=False,
+        totalPlayTime=0,
+        endOfSubscribe=None,
+        id=GameIdEnum.DOFUS,
+    )
+
+
 def upsert_settings_account(login: str, account: UserAccount) -> None:
     if not account.game_list:
-        account.game_list.append(
-            GameSubscription(
-                isFreeToPlay=True,
-                isFormerSubscriber=False,
-                isSubscribed=False,
-                totalPlayTime=0,
-                endOfSubscribe=None,
-                id=GameIdEnum.DOFUS,
-            )
-        )
+        account.game_list.append(_default_dofus_subscription())
     BotStorageController().upsert_account_info(login, account)
     logger.info("[OAuth] Account information updated for %s", login)
 
@@ -104,6 +106,7 @@ def refresh_api_key_from_oauth(
         data=payload.to_form(),
         headers=headers,
         verify=False,
+        timeout=HAAPI_HTTP_TIMEOUT,
     )
     response_body = raise_for_status_with_content(response)
     return RefreshApiKeyResponse.model_validate(response_body)
@@ -125,14 +128,7 @@ def get_game_sub_info_by_login(login: str) -> GameSubscription:
         else None
     )
     if not dofus_game:
-        return GameSubscription(
-            isFreeToPlay=True,
-            isFormerSubscriber=False,
-            isSubscribed=False,
-            totalPlayTime=0,
-            endOfSubscribe=None,
-            id=GameIdEnum.DOFUS,
-        )
+        return _default_dofus_subscription()
     dofus_game.is_former_subscriber = (
         dofus_game.end_of_subscribe is not None
         and dofus_game.end_of_subscribe > datetime(2000, 1, 1, tzinfo=dofus_game.end_of_subscribe.tzinfo)
@@ -143,6 +139,7 @@ def get_game_sub_info_by_login(login: str) -> GameSubscription:
 logger = logging.getLogger()
 
 API_KEY_REFRESH_INTERVAL_MS = 172_800_000
+HAAPI_HTTP_TIMEOUT = (10, 30)
 
 
 @dataclass
@@ -174,7 +171,9 @@ class Haapi:
     @retry_internet
     def signOnWithApiKey(self, game_id: int) -> SignOnResponse:
         url = ANKAMA_ACCOUNT_SIGN_ON_WITH_API_KEY
-        response = self.zaap_session.post(url, json=GameRequest(game=game_id).model_dump(), verify=False)
+        response = self.zaap_session.post(
+            url, json=GameRequest(game=game_id).model_dump(), verify=False, timeout=HAAPI_HTTP_TIMEOUT
+        )
         raise_for_status_with_content(response)
         parsed = SignOnResponse.model_validate(response.json())
         upsert_settings_account(self.login, parsed.account)
@@ -185,6 +184,7 @@ class Haapi:
             ANKAMA_ACCOUNT_SET_NICKNAME_WITH_API_KEY,
             data={"nickname": nickname, "lang": lang},
             verify=False,
+            timeout=HAAPI_HTTP_TIMEOUT,
         )
         raise_for_status_with_content(response)
         account = UserAccount.model_validate(response.json())
@@ -196,6 +196,7 @@ class Haapi:
             ANKAMA_SHIELD_SECURITY_CODE,
             params={"transportType": transport_type},
             verify=False,
+            timeout=HAAPI_HTTP_TIMEOUT,
         )
         if response.status_code == 401 and "NONEEDTOBESECURED" in response.text:
             raise ShieldNotRequiredError
@@ -221,6 +222,7 @@ class Haapi:
                 "name": name,
             },
             verify=False,
+            timeout=HAAPI_HTTP_TIMEOUT,
         )
         raise_for_status_with_content(response)
         parsed = CertificateResponse.model_validate(response.json())
@@ -244,6 +246,7 @@ class Haapi:
                 ANKAMA_API_REFRESH_API_KEY,
                 data=RefreshApiKeyRequest(refresh_token=api_key.refreshToken).to_form(),
                 verify=False,
+                timeout=HAAPI_HTTP_TIMEOUT,
             )
             response_body = raise_for_status_with_content(response)
             parsed = RefreshApiKeyResponse.model_validate(response_body)
@@ -263,6 +266,6 @@ class Haapi:
         if certif:
             params["certificate_id"] = certif.id
             params["certificate_hash"] = CryptoHelper.generateHashFromCertif(certif)
-        response = self.zaap_session.get(url, params=params, verify=False)
+        response = self.zaap_session.get(url, params=params, verify=False, timeout=HAAPI_HTTP_TIMEOUT)
         raise_for_status_with_content(response)
         return CreateTokenResponse.model_validate(response.json()).token

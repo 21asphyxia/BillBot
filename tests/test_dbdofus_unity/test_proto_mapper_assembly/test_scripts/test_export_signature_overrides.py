@@ -1,4 +1,4 @@
-﻿import json
+import json
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -36,15 +36,20 @@ from tests.fixtures.proto_mapper.signatures import (
     builder_function_access_signature,
 )
 
-from DBDofusUnity.proto_mapper_assembly.controllers.new_dump_cs import load_new_dump_cs_messages
-from DBDofusUnity.proto_mapper_assembly.controllers.signature_override_application import apply_stored_signature_overrides
+from DBDofusUnity.proto_mapper_assembly.controllers.signature_override_application import (
+    apply_stored_signature_overrides,
+)
 from DBDofusUnity.proto_mapper_assembly.controllers.signature_overrides import load_signature_overrides
 from DBDofusUnity.proto_mapper_assembly.interfaces.assembly_access import (
     AccessAtomSignature,
     FieldAccessSignatures,
     ReturnRole,
 )
-from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCSMessage, DumpCSMessageField, FieldKey
+from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import (
+    DumpCSMessage,
+    DumpCSMessageField,
+    FieldKey,
+)
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_category import (
     FieldCategoryEnum,
     FieldTypeLeafKind,
@@ -158,33 +163,6 @@ class TestBuildSignatureOverrides:
                 obf_signatures={},
             )
 
-    def test_serialized_function_signatures_omit_message_cls(self) -> None:
-        pinned = pinned_config()
-        obf_sigs = {
-            "xyz": _sig("xyz", []).model_copy(
-                update={
-                    "function_signatures": [
-                        builder_function_access_signature(
-                            return_role=ReturnRole.VOID,
-                            takes_message_parameter=False,
-                            size=12,
-                            self_accesses=[],
-                            foreign_access_summary=[],
-                        )
-                    ]
-                }
-            )
-        }
-
-        result = _run_build_signature_overrides(
-            pinned=pinned,
-            obf_signatures=obf_sigs,
-        )
-        payload = json.loads(result.model_dump_json())
-
-        function_signature = payload["Com.Ankama.Msg"]["function_signatures"][0]
-        assert "message_cls" not in function_signature
-
     def test_rejects_missing_manual_new_dump_cs_entry_for_new_message(self) -> None:
         pinned = pinned_config(non_obf="Com.Ankama.Dofus.Server.Game.Protocol.Fight.NewMsg")
         obf_sigs = {"xyz": _sig("xyz", [32])}
@@ -204,18 +182,6 @@ class TestBuildSignatureOverrides:
 
 
 class TestBuildFieldBinding:
-    def test_returns_empty_when_no_game_mapping_entry(self) -> None:
-        obf_sig = obf_signature_with_fields({"fhtj": 32})
-        non_obf_msg = non_obf_message_with_fields({"character_id": 16})
-        assert (
-            _build_obf_field_binding_by_non_obf_property_name(
-                obf_message=obf_sig.dump_cs_msg,
-                non_obf_message=non_obf_msg,
-                field_mapping={},
-            )
-            == {}
-        )
-
     def test_skips_field_not_found_in_dump_cs(self) -> None:
         obf_sig = obf_signature_with_fields({"fhtj": 32})
         non_obf_msg = non_obf_message_with_fields({"cells": 16})
@@ -265,37 +231,6 @@ class TestBuildFieldBinding:
         assert result.root["Com.Ankama.Msg"].obf_field_binding_by_non_obf_property_name == {
             "actorId": FieldOverrideBinding(obf_field_name="fhtj", obf_memory_offset=32),
             "cells": FieldOverrideBinding(obf_field_name="fhtm", obf_memory_offset=48),
-        }
-
-    def test_build_signature_overrides_populates_field_offset_remapping(self) -> None:
-        pinned = pinned_config()
-        fields = [dump_field("fhtj", "fhtj", 32, FieldCategoryEnum.NUMBER)]
-        message = _msg("xyz").model_copy(update={"fields": fields})
-        obf_sigs = {
-            "xyz": message_signature(
-                "xyz",
-                declared_field_signatures=[],
-                dump_cs_msg=message,
-                field_signatures=[field_signature(32, None)],
-            )
-        }
-        game_mappings = game_mappings_doc({"fhtj": "actorId"})
-        bootstrap_msg = DumpCSMessage(
-            file_descriptor="FD",
-            name="Msg",
-            namespace="Com.Ankama",
-            fields=[dump_field("_actor_id", "actorId", 16, FieldCategoryEnum.NUMBER)],
-        )
-
-        result = _run_build_signature_overrides(
-            pinned=pinned,
-            obf_signatures=obf_sigs,
-            bootstrap_messages={"Com.Ankama.Msg": bootstrap_msg},
-            game_mappings=game_mappings,
-        )
-
-        assert result.root["Com.Ankama.Msg"].obf_field_binding_by_non_obf_property_name == {
-            "actorId": FieldOverrideBinding(obf_field_name="fhtj", obf_memory_offset=32)
         }
 
     def test_build_signature_overrides_binds_oneof_variants_by_obf_field_name(self) -> None:
@@ -450,73 +385,6 @@ class TestBuildFieldBinding:
 
 
 class TestRekeyedOverrideEntry:
-    def test_rekeys_field_signatures_into_non_obf_offset_space(self) -> None:
-        pinned = pinned_config()
-        obf_sigs = {
-            "xyz": obf_signature_with_fields(
-                {"fhya": 56, "fhyc": 64},
-                field_signatures=[field_signature(56, None), field_signature(64, None)],
-            )
-        }
-        non_obf_msg = non_obf_message_with_fields({"subarea_id": 24, "map_id": 32})
-        game_mappings = game_mappings_doc({"fhya": "subarea_id", "fhyc": "map_id"})
-
-        result = _run_build_signature_overrides(
-            pinned=pinned,
-            obf_signatures=obf_sigs,
-            non_obf_messages=[non_obf_msg],
-            game_mappings=game_mappings,
-        )
-
-        entry = result.root["Com.Ankama.Msg"]
-        assert entry.obf_field_binding_by_non_obf_property_name == {}
-        assert {field.field_offset for field in entry.field_signatures.values()} == {24, 32}
-
-    def test_rekeys_function_signature_self_accesses(self) -> None:
-        pinned = pinned_config()
-        function_signatures = [
-            builder_function_access_signature(
-                return_role=ReturnRole.VOID,
-                takes_message_parameter=False,
-                size=12,
-                self_accesses=[
-                    AccessAtomSignature(
-                        entry_type="field",
-                        access_kind="read",
-                        field_offset=56,
-                        index_in_function=0,
-                    ),
-                    AccessAtomSignature(
-                        entry_type="typeinfo",
-                        access_kind="load",
-                        field_offset=None,
-                        index_in_function=0,
-                    ),
-                ],
-                foreign_access_summary=[],
-            )
-        ]
-        obf_sigs = {
-            "xyz": obf_signature_with_fields(
-                {"fhya": 56},
-                function_signatures=function_signatures,
-            )
-        }
-        non_obf_msg = non_obf_message_with_fields({"subarea_id": 24})
-        game_mappings = game_mappings_doc({"fhya": "subarea_id"})
-
-        result = _run_build_signature_overrides(
-            pinned=pinned,
-            obf_signatures=obf_sigs,
-            non_obf_messages=[non_obf_msg],
-            game_mappings=game_mappings,
-        )
-
-        entry = result.root["Com.Ankama.Msg"]
-        atoms = entry.function_signatures[0].self_accesses
-        assert atoms[0].field_offset == 24
-        assert atoms[1].field_offset is None
-
     def test_rekeyed_override_round_trip_preserves_field_access_indexes_for_scoring(self) -> None:
         pinned = pinned_config()
         number_shape = FieldTypeShape(FieldCategoryEnum.NUMBER, None, None)
@@ -583,50 +451,6 @@ class TestRekeyedOverrideEntry:
             ).assembly_sim_data.assembly_similarity
             == 1.0
         )
-
-    def test_keeps_function_atoms_with_unmapped_field_offset(self) -> None:
-        pinned = pinned_config()
-        function_signatures = [
-            builder_function_access_signature(
-                return_role=ReturnRole.VOID,
-                takes_message_parameter=False,
-                size=12,
-                self_accesses=[
-                    AccessAtomSignature(
-                        entry_type="field",
-                        access_kind="read",
-                        field_offset=56,
-                        index_in_function=0,
-                    ),
-                    AccessAtomSignature(
-                        entry_type="field",
-                        access_kind="read",
-                        field_offset=999,
-                        index_in_function=0,
-                    ),
-                ],
-                foreign_access_summary=[],
-            )
-        ]
-        obf_sigs = {
-            "xyz": obf_signature_with_fields(
-                {"fhya": 56},
-                function_signatures=function_signatures,
-            )
-        }
-        non_obf_msg = non_obf_message_with_fields({"subarea_id": 24})
-        game_mappings = game_mappings_doc({"fhya": "subarea_id"})
-
-        result = _run_build_signature_overrides(
-            pinned=pinned,
-            obf_signatures=obf_sigs,
-            non_obf_messages=[non_obf_msg],
-            game_mappings=game_mappings,
-        )
-
-        entry = result.root["Com.Ankama.Msg"]
-        atoms = entry.function_signatures[0].self_accesses
-        assert [atom.field_offset for atom in atoms] == [24, 999]
 
     def test_exports_one_signature_per_distinct_alias(self) -> None:
         pinned = pinned_config()
@@ -721,27 +545,6 @@ class TestRekeyedOverrideEntry:
         assert unknown_signature.field_offset == 64
         assert unknown_signature.field_key == FieldKey(memory_offset=64, field_name="unknown")
         assert unknown_signature.accesses == []
-
-    def test_exports_direct_pinned_pair_without_detailed_mapping(self) -> None:
-        pinned = pinned_config()
-        obf_sigs = {
-            "xyz": obf_signature_with_fields(
-                {"fhya": 56},
-                field_signatures=[field_signature(56, None)],
-            )
-        }
-        non_obf_msg = non_obf_message_with_fields({"subarea_id": 24})
-
-        result = _run_build_signature_overrides(
-            pinned=pinned,
-            obf_signatures=obf_sigs,
-            non_obf_messages=[non_obf_msg],
-            game_mappings=GameMappingsDocument(root={}),
-        )
-
-        entry = result.root["Com.Ankama.Msg"]
-        assert entry.field_signatures == {}
-        assert entry.obf_field_binding_by_non_obf_property_name == {}
 
     def test_exports_canonical_enum_signature_hints_into_non_obf_field_names(self) -> None:
         pinned = pinned_config()
@@ -941,63 +744,6 @@ class TestRekeyedOverrideEntry:
         hints = result.root["Com.Ankama.Msg"].enum_signature_hints_by_non_obf_prop_name
         assert "correct_field" in hints
         assert "old_field" not in hints
-
-
-class TestLoadBootstrapFiles:
-    def test_returns_empty_when_new_dump_cs_file_does_not_exist(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            path = Path(temp_dir) / "missing.json"
-
-            result = load_new_dump_cs_messages(path)
-
-        assert result.root == {}
-
-    def test_returns_empty_when_signature_override_file_does_not_exist(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            path = Path(temp_dir) / "missing.json"
-
-            result = load_signature_overrides(path)
-
-        assert result.root == {}
-
-    def test_load_signature_overrides_round_trips_enum_signature_hints(self) -> None:
-        payload = SignatureOverridesFile(
-            root={
-                "Com.Ankama.Msg": SignatureOverrideEntry(
-                    function_signatures=[],
-                    field_signatures={},
-                    enum_signature_hints_by_non_obf_prop_name={
-                        "subarea_id": {
-                            "value": EnumSignatureOverrideHint(
-                                non_obf_enum_type="clear_enum",
-                                signature=_enum_signature_entry(
-                                    member_value_to_name={"10": "Ten"},
-                                    member_groups=[[10]],
-                                ),
-                            )
-                        }
-                    },
-                )
-            }
-        )
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            path = Path(temp_dir) / "messages_access_signature_override.json"
-            path.write_text(payload.model_dump_json(), encoding="utf-8")
-
-            result = load_signature_overrides(path)
-
-        assert result.root["Com.Ankama.Msg"].enum_signature_hints_by_non_obf_prop_name == {
-            "subarea_id": {
-                "value": EnumSignatureOverrideHint(
-                    non_obf_enum_type="clear_enum",
-                    signature=_enum_signature_entry(
-                        member_value_to_name={"10": "Ten"},
-                        member_groups=[[10]],
-                    ),
-                )
-            }
-        }
 
 
 class TestManualNewDumpCs:

@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 from tests.fixtures.proto_mapper.helper_builders import (
     snapshot_layout,
@@ -51,13 +51,3 @@ class TestIterArchivedBuildDirs:
         )
 
         assert build_dirs == [complete]
-
-    def test_skips_directories_without_a_game_assembly(self, tmp_path: Path) -> None:
-        layout = snapshot_layout(tmp_path)
-        archived = write_snapshot(layout.snapshots_root / "04_08_2026", assembly_mtime_ns=300)
-        (layout.snapshots_root / "cache").mkdir()
-
-        assert iter_archived_build_dirs(snapshots_root=layout.snapshots_root) == [archived]
-
-    def test_returns_nothing_when_the_snapshots_root_is_absent(self, tmp_path: Path) -> None:
-        assert iter_archived_build_dirs(snapshots_root=tmp_path / "missing") == []

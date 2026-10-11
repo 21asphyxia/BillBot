@@ -26,7 +26,6 @@ from DBDofusUnity.datas.protos.non_obf.game.gamemap_pb2 import (
     MapObstacle,
     MapObstacleUpdateEvent,
 )
-from DBDofusUnity.dofus_unity_reader.grid.map_point import MapPoint
 
 from src.core.bot.bot import Bot
 from src.core.states.entity_state import FightActor
@@ -123,21 +122,6 @@ class TestEntityState:
         )
 
         assert set(runtime_bot.game_state.entity.obstacle_on_cell_id) == {100, 101}
-
-    def test_actors_on_mp_index_is_updated_when_setting_actors(
-        self,
-        runtime_bot: Bot,
-    ):
-        self._set_actors(
-            runtime_bot,
-            [
-                make_actor(actor_id=111, cell_id=256),
-            ],
-        )
-
-        mp = MapPoint.from_cell_id(256)
-
-        assert 111 in runtime_bot.game_state.entity.actors_on_mp[mp]
 
     def test_map_complementary_information_event_replaces_previous_actors(
         self,

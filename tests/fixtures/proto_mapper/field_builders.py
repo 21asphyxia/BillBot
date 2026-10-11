@@ -162,43 +162,6 @@ def enum_field(
     return f
 
 
-def map_enum_field(
-    *,
-    field_name: str,
-    property_name: str,
-    offset: int,
-    enum_key_type: str | None = None,
-    enum_value_type: str | None = None,
-) -> DumpCSMessageField:
-    f = dump_field(field_name, property_name, offset, FieldCategoryEnum.MAP)
-    key_type = enum_key_type or "int"
-    value_type = enum_value_type or "int"
-    f.clr_type = f"MapField<{key_type},{value_type}>"
-    f.normalized_type = f.clr_type
-    f.enum_key_type = enum_key_type
-    f.enum_value_type = enum_value_type
-    return f
-
-
-def make_field(
-    category: FieldCategoryEnum,
-    normalized_type: str,
-    *,
-    clr_type: str | None = None,
-    enum_key_type: str | None = None,
-    enum_value_type: str | None = None,
-) -> DumpCSMessageField:
-    return DumpCSMessageField(
-        clr_type=clr_type or normalized_type,
-        normalized_type=normalized_type,
-        category=category,
-        memory_offset=0x10,
-        field_name="field_",
-        enum_key_type=enum_key_type,
-        enum_value_type=enum_value_type,
-    )
-
-
 def msg_typed_field(
     *,
     field_name: str,

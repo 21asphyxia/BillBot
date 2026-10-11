@@ -3,16 +3,7 @@ from asyncio import sleep
 from dataclasses import dataclass
 
 from playwright.async_api import Locator, Page
-from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
-COOKIE_ACCEPT_SELECTORS = (
-    "button:has-text('Accepter')",
-    "button:has-text('Tout accepter')",
-    "button:has-text('Accept all')",
-    "button:has-text('I accept')",
-    "#didomi-notice-agree-button",
-    "#onetrust-accept-btn-handler",
-)
 FORM_ERROR_SELECTORS = (
     ".alert-danger",
     ".ak-alert-danger",
@@ -66,19 +57,6 @@ async def human_type_locator(locator: Locator, text: str) -> None:
 
 async def human_type_selector(page: Page, selector: str, text: str) -> None:
     await human_type_locator(page.locator(selector).first, text)
-
-
-async def accept_cookies_if_present(page: Page) -> bool:
-    for selector in COOKIE_ACCEPT_SELECTORS:
-        button = page.locator(selector).first
-        if await button.count() == 0:
-            continue
-        try:
-            await button.click(timeout=2_000)
-        except PlaywrightTimeoutError:
-            continue
-        return True
-    return False
 
 
 def detect_antibot_marker(html: str) -> AntibotDetection | None:

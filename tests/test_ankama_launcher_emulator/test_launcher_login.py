@@ -1,5 +1,5 @@
 from typing import cast
-from unittest import IsolatedAsyncioTestCase
+from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import requests
@@ -25,62 +25,34 @@ from tests.fixtures.launcher import (
 )
 
 
-class _FakeRefreshApiKeySession:
-    def __init__(self, response: requests.Response) -> None:
-        self.proxies: dict[str, str] = {}
-        self.response = response
-        self.last_url: str | None = None
-        self.last_data: object | None = None
-
-    def post(
-        self,
-        url: str,
-        *,
-        data: object,
-        headers: dict[str, str],
-        verify: bool,
-    ) -> requests.Response:
-        self.last_url = url
-        self.last_data = data
-        return self.response
-
-
-def _json_response(status_code: int, body: bytes) -> requests.Response:
-    response = requests.Response()
-    response.status_code = status_code
-    setattr(response, "_content", body)
-    response.url = "https://haapi.ankama.com/json/Ankama/v5/Api/RefreshApiKey"
-    return response
-
-
-class TestRefreshApiKeyFromOauth(IsolatedAsyncioTestCase):
+class TestRefreshApiKeyFromOauth(TestCase):
     def test_uses_proxy_for_refresh_api_key_request(self) -> None:
-        response = _json_response(200, b'{"key":"api-key","account_id":123,"refresh_token":"next"}')
-        session = _FakeRefreshApiKeySession(response)
-
+        session = MagicMock(spec=requests.Session)
+        session.proxies = {}
+        session.post.return_value.json.return_value = {
+            "key": "api-key",
+            "account_id": 123,
+            "refresh_token": "next",
+        }
         with patch.object(haapi_module.requests, "Session", return_value=session):
             result = haapi_module.refresh_api_key_from_oauth(
-                "access",
-                "refresh",
-                proxy_url="http://127.0.0.1:9000",
+                "access", "refresh", proxy_url="http://127.0.0.1:9000"
             )
-
         self.assertEqual(result.account_id, 123)
-        self.assertEqual(
-            session.proxies,
-            {"http": "http://127.0.0.1:9000", "https": "http://127.0.0.1:9000"},
-        )
+        self.assertEqual(session.proxies, {"http": "http://127.0.0.1:9000", "https": "http://127.0.0.1:9000"})
 
     def test_refresh_api_key_http_error_includes_response_body(self) -> None:
-        response = _json_response(403, b'{"error":"FORBIDDEN"}')
-        session = _FakeRefreshApiKeySession(response)
-
+        session = MagicMock(spec=requests.Session)
+        response = MagicMock(spec=requests.Response)
+        response.status_code = 403
+        response.text = "FORBIDDEN"
+        response.raise_for_status.side_effect = requests.HTTPError("Forbidden")
+        session.post.return_value = response
         with (
             patch.object(haapi_module.requests, "Session", return_value=session),
-            self.assertRaises(requests.exceptions.HTTPError) as context,
+            self.assertRaises(requests.HTTPError) as context,
         ):
             haapi_module.refresh_api_key_from_oauth("access", "refresh")
-
         self.assertIn("FORBIDDEN", str(context.exception))
 
 
@@ -308,9 +280,7 @@ class TestOAuthAuthenticate(IsolatedAsyncioTestCase):
                 new=authenticate,
             ),
             patch.object(launcher_login_module.BotStorageController, "quarantine") as quarantine,
-            patch.object(
-                launcher_login_module, "resolve_mail_provider", return_value=FakeMailProvider()
-            ),
+            patch.object(launcher_login_module, "resolve_mail_provider", return_value=FakeMailProvider()),
         ):
             result = await launcher_login_module._authenticate_account(
                 account, proxy_url="http://127.0.0.1:9000"
@@ -349,9 +319,7 @@ class TestOAuthAuthenticate(IsolatedAsyncioTestCase):
                 new=authenticate,
             ),
             patch.object(launcher_login_module.BotStorageController, "quarantine") as quarantine,
-            patch.object(
-                launcher_login_module, "resolve_mail_provider", return_value=FakeMailProvider()
-            ),
+            patch.object(launcher_login_module, "resolve_mail_provider", return_value=FakeMailProvider()),
         ):
             result = await launcher_login_module._authenticate_account(
                 account, proxy_url="http://127.0.0.1:9000"

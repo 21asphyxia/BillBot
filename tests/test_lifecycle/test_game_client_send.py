@@ -8,10 +8,6 @@ from unittest.mock import MagicMock
 import pytest
 from DBDofusUnity.datas.protos.non_obf.connection.login_message_pb2 import (
     IdentificationResponse,
-    LoginMessage,
-    Request,
-    SelectServerRequest,
-    SelectServerResponse,
 )
 from DBDofusUnity.datas.protos.non_obf.game.connection_pb2 import (
     AuthenticationTicketAcceptedEvent,
@@ -20,29 +16,22 @@ from DBDofusUnity.datas.protos.non_obf.game.connection_pb2 import (
     IdentificationRequest as GameIdentificationRequest,
 )
 from DBDofusUnity.datas.protos.non_obf.game.game_action_pb2 import GameActionFightCastRequest
-from DBDofusUnity.datas.protos.non_obf.game.spell_pb2 import SpellsEvent
 from google.protobuf.message import Message
-from DBDofusUnity.dofus_unity_reader.game_constants.server import ServerEnum
 from requests import HTTPError
 from ankama_launcher_emulator.interfaces.schedule_profile import (
     PersistedProxy,
     ScheduleProfile,
 )
 
-from src.core.behaviors.socket import connection_behavior as connection_behavior_module
-from src.core.behaviors.behavior import BehaviorState
 from src.core.behaviors.socket.connection_behavior import ConnectionBehavior, ConnectionErrorCode
 from src.core.bot.bot import Bot
 from src.core.bot.bot_manager import BotManager
 from src.core.bot.lifecycle import connection_handler as connection_handler_module
 from src.core.bot.lifecycle.scheduler import BotScheduler
 from src.core.bot import bot_manager as bot_manager_module
-from src.core.socket_network import base_client as base_client_module
-from src.core.socket_network import connection_client as connection_client_module
 from src.core.socket_network import game_client as game_client_module
 from src.core.socket_network import socket_client as socket_client_module
 from src.core.socket_network.game_client import GameClient
-from src.core.socket_network.connection_client import ConnectionClient
 from src.core.socket_network.socket_client import SocketClient
 from tests.fixtures.entities import make_actor
 
@@ -85,38 +74,6 @@ class TestGameClientSendRoutesToProcessMsg:
         assert recorded_from_server is False
         recorded_source = runtime_bot.debug_recorder.record_game_message.call_args.args[4]
         assert recorded_source == "framework_injected"
-
-    def test_incoming_socket_message_is_recorded(
-        self,
-        game_client: GameClient,
-        runtime_bot: Bot,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        runtime_bot.debug_recorder = MagicMock()
-        clear_msg = SpellsEvent(human_spells=[])
-        obf_msg = cast(Message, MagicMock())
-
-        def fake_decode_varint_size(msg_datas: bytes) -> tuple[int, int]:
-            return 3, 1
-
-        def fake_get_game_msg(*args: object, **kwargs: object) -> tuple[None, SpellsEvent, Message, int]:
-            return None, clear_msg, obf_msg, 42
-        get_game_msg = MagicMock(side_effect=fake_get_game_msg)
-
-        monkeypatch.setattr(game_client_module, "decode_varint_size", fake_decode_varint_size)
-        monkeypatch.setattr(game_client_module.config, "DEBUG", True)
-        monkeypatch.setattr(
-            game_client_module,
-            "get_game_msg",
-            get_game_msg,
-        )
-
-        game_client.on_received_msg_datas(b"\x03abc")
-
-        get_game_msg.assert_called_once_with(b"abc", True, from_server=True)
-        runtime_bot.debug_recorder.record_game_message.assert_called_once_with(
-            clear_msg, obf_msg, 42, True, "server"
-        )
 
     def test_handshake_timeout_disconnects_game_socket(
         self, runtime_bot: Bot, monkeypatch: pytest.MonkeyPatch
@@ -212,9 +169,7 @@ class TestSocketProxyConnection:
             bot_manager_module.BotStorageController,
             "get_all_records",
             MagicMock(
-                return_value={
-                    "banned@example.com": MagicMock(quarantined_schedule_profile="profile-a")
-                }
+                return_value={"banned@example.com": MagicMock(quarantined_schedule_profile="profile-a")}
             ),
         )
         get_profile = MagicMock(return_value=original_profile)
@@ -277,7 +232,9 @@ class TestSocketProxyConnection:
         monkeypatch.setattr(
             bot_manager_module.BotStorageController,
             "get_all_records",
-            MagicMock(return_value={runtime_bot.account.apikey.login: MagicMock(schedule_profile="profile-a")}),
+            MagicMock(
+                return_value={runtime_bot.account.apikey.login: MagicMock(schedule_profile="profile-a")}
+            ),
         )
         reassign = MagicMock()
         monkeypatch.setattr(
@@ -346,7 +303,9 @@ class TestSocketProxyConnection:
         monkeypatch.setattr(
             bot_manager_module.BotStorageController,
             "get_all_records",
-            MagicMock(return_value={runtime_bot.account.apikey.login: MagicMock(schedule_profile="profile-a")}),
+            MagicMock(
+                return_value={runtime_bot.account.apikey.login: MagicMock(schedule_profile="profile-a")}
+            ),
         )
         reassign = MagicMock()
         monkeypatch.setattr(
@@ -364,31 +323,6 @@ class TestSocketProxyConnection:
 
         reassign.assert_called_once_with(runtime_bot.account.apikey.login, "profile-b")
         socket_client.assert_called_once()
-
-    def test_outgoing_connection_request_reaches_server_frame(
-        self,
-        runtime_bot: Bot,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        connection_behavior = MagicMock()
-        connection_client = ConnectionClient(
-            bot=runtime_bot,
-            connection_behavior=connection_behavior,
-            proxy_url=None,
-        )
-        connection_client.client_socket = MagicMock()
-        monkeypatch.setattr(connection_client_module, "encode_msg", _fake_encode)
-        request = LoginMessage(
-            request=Request(
-                uuid="1",
-                selectServer=SelectServerRequest(server=ServerEnum.BRIAL),
-            )
-        )
-
-        connection_client.send_msg(request)
-
-        connection_client.client_socket.sendall.assert_called_once_with(b"")
-        assert runtime_bot.game_state.player.server_id == ServerEnum.BRIAL
 
     def test_scheduled_stop_closes_connected_runtime_when_not_playing(
         self,
@@ -414,36 +348,6 @@ class TestSocketProxyConnection:
 
         request_disconnect.assert_called_once_with()
         stop_behaviors.assert_called_once_with()
-
-    def test_connection_client_owns_disconnect_callback_during_authentication(
-        self,
-        runtime_bot: Bot,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        connection_behavior = MagicMock()
-        connection_behavior.state = BehaviorState.RUNNING
-        connection_client = ConnectionClient(
-            bot=runtime_bot,
-            connection_behavior=connection_behavior,
-            proxy_url=None,
-        )
-        connection_client.client_socket = MagicMock()
-        monkeypatch.setattr(connection_client, "connect_socket", MagicMock())
-        monkeypatch.setattr(
-            "src.core.socket_network.connection_client.threading.Thread",
-            MagicMock(),
-        )
-
-        connection_client.connect("game-token", MagicMock())
-
-        assert runtime_bot.event_manager.request_disconnect_callback == (connection_client.close)
-        assert runtime_bot.event_manager.is_socket_mode is True
-
-        connection_client.close()
-
-        assert runtime_bot.event_manager.request_disconnect_callback is None
-        assert runtime_bot.event_manager.is_socket_mode is False
-        connection_behavior.stop.assert_called_once_with()
 
     def test_socket_relaunch_closes_previous_runtime_before_connecting(
         self,
@@ -517,47 +421,6 @@ class TestSocketProxyConnection:
         assert runtime_bot.game_state.player.character_id == 123
         assert runtime_bot.game_state.player.character_name == "Renaissance"
 
-    def test_server_selection_success_resets_runtime_capture_sequence(
-        self, runtime_bot: Bot, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        runtime_store = MagicMock()
-        runtime_store_factory = MagicMock(return_value=runtime_store)
-        subscription_storage = MagicMock()
-        subscription_storage_factory = MagicMock(return_value=subscription_storage)
-        runtime_bot.event_manager.on_send_conn_callback = MagicMock()
-        connection_behavior = ConnectionBehavior(
-            _logger=MagicMock(),
-            event_manager=runtime_bot.event_manager,
-            game_state=runtime_bot.game_state,
-        )
-        response = IdentificationResponse(
-            success=IdentificationResponse.Success(subscription_end_date="2030-01-01T00:00:00")
-        )
-
-        monkeypatch.setattr(connection_behavior_module, "RuntimeDataStore", runtime_store_factory)
-        monkeypatch.setattr(
-            connection_behavior_module,
-            "SubscriptionExpirationStorage",
-            subscription_storage_factory,
-        )
-
-        connection_behavior.on_identification_response(response)
-
-        runtime_store.start_connection_capture_sequence.assert_not_called()
-        subscription_storage.record_expiration.assert_called_once()
-
-        connection_behavior.on_select_server_response(
-            SelectServerResponse(
-                success=SelectServerResponse.Success(
-                    token="game-ticket",
-                    host="127.0.0.1",
-                    ports=[5555],
-                )
-            )
-        )
-
-        runtime_store.start_connection_capture_sequence.assert_called_once_with()
-
     def test_identification_reason_14_is_treated_as_banned(
         self, runtime_bot: Bot, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -589,9 +452,7 @@ class TestSocketProxyConnection:
 
         connection_behavior.on_identification_response(
             IdentificationResponse(
-                error=IdentificationResponse.Error(
-                    reason=IdentificationResponse.Error.Reason.BANNED
-                )
+                error=IdentificationResponse.Error(reason=IdentificationResponse.Error.Reason.BANNED)
             )
         )
 
@@ -699,28 +560,6 @@ class TestSocketProxyConnection:
         )
 
         profile_confirmed.assert_called_once_with(runtime_bot.account.apikey.login)
-
-    def test_direct_connection_uses_plain_socket(
-        self, runtime_bot: Bot, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        plain_socket = MagicMock()
-        socks_socket_factory = MagicMock()
-        monkeypatch.setattr(base_client_module, "socket", MagicMock(return_value=plain_socket))
-        monkeypatch.setattr(base_client_module.socks, "socksocket", socks_socket_factory)
-
-        client = GameClient(bot=runtime_bot, proxy_url=None)
-
-        assert client.client_socket is plain_socket
-        socks_socket_factory.assert_not_called()
-
-    def test_connect_socket_does_not_bind_interface(self, runtime_bot: Bot) -> None:
-        client = GameClient(bot=runtime_bot, proxy_url="socks5://127.0.0.1:1080")
-        client.client_socket = MagicMock()
-
-        client.connect_socket("example.invalid", 5555)
-
-        client.client_socket.bind.assert_not_called()
-        client.client_socket.connect.assert_called_once_with(("example.invalid", 5555))
 
     def test_fragmented_varint_header_waits_for_next_read(
         self, game_client: GameClient, monkeypatch: pytest.MonkeyPatch

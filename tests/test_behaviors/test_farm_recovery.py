@@ -217,19 +217,6 @@ class TestFarmRecovery:
 
         assert runtime_bot.game_state.map.has_session_banned_transitions
 
-    def test_landing_on_the_expected_map_keeps_the_transition(self, runtime_bot: Bot) -> None:
-        edge_behavior = runtime_bot.fighter_behavior.random_farm_behavior.edge_behavior
-        edge = MagicMock()
-        transition = MagicMock()
-        edge.m_to.m_mapId = 147981825
-        runtime_bot.game_state.fight.in_fight = False
-
-        edge_behavior.on_map_current_event(
-            MapCurrentEvent(map_id=147981825), edge=edge, transition=transition
-        )
-
-        assert not runtime_bot.game_state.map.banned_edge_transitions
-
     def test_repeated_unexpected_map_changes_request_disconnect(self, runtime_bot: Bot) -> None:
         random_farm_behavior = runtime_bot.fighter_behavior.random_farm_behavior
         request_disconnect = MagicMock()

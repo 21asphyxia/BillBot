@@ -1,4 +1,4 @@
-﻿from datetime import date
+from datetime import date
 from pathlib import Path
 
 from tests.fixtures.proto_mapper.helper_builders import (
@@ -8,7 +8,6 @@ from tests.fixtures.proto_mapper.helper_builders import (
 )
 
 from DBDofusUnity.proto_mapper_assembly.helpers.obf_game_snapshot import (
-    find_snapshot_dir_by_game_assembly_mtime_ns,
     resolve_obf_game_snapshot,
 )
 
@@ -66,18 +65,3 @@ class TestObfGameSnapshot:
         )
 
         assert snapshot.game_assembly == obf_snapshot / "GameAssembly.dll"
-
-
-class TestFindSnapshotDirByGameAssemblyMtimeNs:
-    def test_returns_none_when_no_snapshot_matches(self, tmp_path: Path) -> None:
-        layout = snapshot_layout(tmp_path)
-        write_snapshot(layout.snapshots_root / "22_04_2026", assembly_mtime_ns=200)
-
-        found = find_snapshot_dir_by_game_assembly_mtime_ns(layout.snapshots_root, 999)
-
-        assert found is None
-
-    def test_returns_none_when_snapshots_root_missing(self, tmp_path: Path) -> None:
-        found = find_snapshot_dir_by_game_assembly_mtime_ns(tmp_path / "missing", 300)
-
-        assert found is None

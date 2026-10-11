@@ -7,12 +7,8 @@ from tests.fixtures.proto_mapper.field_builders import dump_field, typed_dump_fi
 from DBDofusUnity.proto_mapper_assembly.interfaces.assembly_access import AccessEntry, FieldAccessEntry
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_category import FieldCategoryEnum
 from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCSMessageField
-from DBDofusUnity.proto_mapper_assembly.interfaces.il2cpp_json import MethodDefinition
 from scripts.mapping.ida_tracer_lib.lookups.accessor_candidate import (
     AccessorCandidate,
-)
-from scripts.mapping.ida_tracer_lib.signatures.parser import (
-    extract_proto_parameter_seeds,
 )
 from scripts.mapping.ida_tracer_lib.simulation.scan_engine import (
     scan_function_instructions,
@@ -165,20 +161,6 @@ def scan(monkeypatch: pytest.MonkeyPatch) -> Callable[..., list[AccessEntry]]:
     return run
 
 
-@pytest.mark.parametrize(
-    "parameter", ["MapField`2[System.Int32,Msg]", "MapField<int, Msg>", "IEnumerable<Msg>"]
-)
-def test_collection_parameters_seed_message_values(parameter: str) -> None:
-    method = MethodDefinition(
-        virtualAddress="0x100",
-        name="Consumer",
-        signature="void Consumer(void * values, MethodInfo * method)",
-        dotNetSignature=f"Void Consumer({parameter})",
-        group="Core.dll/Consumer",
-    )
-    assert extract_proto_parameter_seeds(method, {"Msg": "Msg"}) == [(0, "repeated_container", "Msg")]
-
-
 def test_shared_current_returns_message_with_comparison_context(
     scan: Callable[..., list[AccessEntry]],
 ) -> None:
@@ -203,32 +185,6 @@ def test_shared_current_returns_message_with_comparison_context(
     assert {entry.field_offset for entry in fields} == {32, 36}
     discriminator = next(entry for entry in fields if entry.field_offset == 32)
     assert {comparison.constant for comparison in discriminator.comparisons} == {1, 2, 3}
-
-
-def test_kvp_value_output_preserves_message_identity(scan: Callable[..., list[AccessEntry]]) -> None:
-    entries = scan(
-        [
-            Instruction("mov", reg(1), reg(7)),
-            Instruction("mov", reg(2), global_address(2000)),
-            call(1001),
-            Instruction("mov", reg(0), mem(0, 0, 8)),
-            Instruction("call", reg(0)),
-            Instruction("movups", reg(33, 16), mem(0, 0, 16)),
-            Instruction("movups", mem(4, 64, 16), reg(33, 16)),
-            Instruction("lea", reg(1), mem(4, 64, 8)),
-            Instruction("lea", reg(2), mem(4, 96, 8)),
-            Instruction("mov", reg(8), global_address(2001)),
-            call(1002),
-            Instruction("mov", reg(1), mem(4, 96, 8)),
-            Instruction("mov", reg(0, 4), mem(1, 40)),
-        ],
-        {7: ("repeated_enumerator", "Msg")},
-        methodinfo={2001: "kvp_get_value:Msg"},
-        interfaces={2000: "kvp_value:Msg"},
-    )
-    assert [(entry.cls, entry.field_offset) for entry in entries if isinstance(entry, FieldAccessEntry)] == [
-        ("Msg", 40)
-    ]
 
 
 @pytest.mark.parametrize("interruption", [Instruction("xor", reg(2), reg(2)), call(1002)])

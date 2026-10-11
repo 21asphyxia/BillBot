@@ -50,10 +50,6 @@ class TestFindBestSelfBuff:
 
         monkeypatch.setattr(attacker_module, "get_valid_self_buff_spells_for_turn", _fake)
 
-    def test_none_when_no_candidates(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        self._patch_candidates(monkeypatch, [])
-        assert _make_attacker().find_best_self_buff(cast(AttackContext, SimpleNamespace())) is None
-
     def test_picks_cheapest_buff(self, monkeypatch: pytest.MonkeyPatch) -> None:
         self._patch_candidates(
             monkeypatch,

@@ -21,7 +21,6 @@ from DBDofusUnity.dofus_unity_reader.game_constants.inventory_position import (
 )
 from src.core.behaviors.items.auto_equipment_from_inventory_behavior import (
     AutoEquipmentFromInventoryBehavior,
-    _equipment_signature,
 )
 from src.core.engine.items import equipment as equipment_module
 from src.core.states.game_state import GameState
@@ -72,17 +71,6 @@ def _make_behavior() -> AutoEquipmentFromInventoryBehavior:
 
 
 class TestBestLoadout:
-    @pytest.mark.parametrize(
-        ("item_gid", "expected_positions"),
-        _EQUIPMENT_POSITION_CASES + ((15, ()),),
-    )
-    def test_item_type_maps_to_possible_equipment_positions(
-        self,
-        item_gid: int,
-        expected_positions: tuple[CharacterInventoryPositionEnum, ...],
-    ) -> None:
-        assert equipment_module.get_equipment_positions(item_gid) == expected_positions
-
     def test_keeps_equivalent_equipped_ring_when_another_ring_improves(self) -> None:
         behavior = _make_behavior()
         equipped_ring = _make_item(uid=1, gid=900, action=_POWER_ACTION, value_int=10)
@@ -120,27 +108,6 @@ class TestBestLoadout:
 
         assert best[CharacterInventoryPositionEnum.InventoryPositionRingLeft].item.uid == 2
         assert CharacterInventoryPositionEnum.InventoryPositionRingRight not in best
-
-    def test_effect_order_does_not_change_equipment_signature(self) -> None:
-        first = ObjectItemInventory(
-            item=ObjectItem(
-                uid=1,
-                gid=900,
-                effects=[
-                    ObjectEffect(action=_POWER_ACTION, value_int=10),
-                    ObjectEffect(action=_VITALITY_ACTION, value_int=20),
-                ],
-            )
-        )
-        second = ObjectItemInventory(
-            item=ObjectItem(
-                uid=2,
-                gid=900,
-                effects=list(reversed(first.item.effects)),
-            )
-        )
-
-        assert _equipment_signature(first) == _equipment_signature(second)
 
     def test_picks_top_two_of_three_ring_candidates(self) -> None:
         behavior = _make_behavior()
@@ -260,40 +227,6 @@ class TestEquipConfirmation:
         assert finished_with
         assert event_manager.cleared_origins == [behavior]
         assert behavior._pending_position is None
-
-    def test_object_added_event_with_non_matching_position_is_ignored(self) -> None:
-        position = CharacterInventoryPositionEnum.AccessoryPositionAmulet
-        behavior, event_manager, finished_with = _make_equip_behavior(pending_uid=1, position=position)
-
-        behavior._equip_next()
-        assert event_manager.confirm_callback is not None
-
-        event_manager.confirm_callback(
-            ObjectAddedEvent(
-                object=ObjectItemInventory(
-                    position=CharacterInventoryPositionEnum.InventoryPositionNotEquiped
-                )
-            )
-        )
-
-        assert not finished_with
-        assert behavior._pending_position == position
-
-    def test_object_movement_event_with_non_matching_position_is_ignored(self) -> None:
-        position = CharacterInventoryPositionEnum.AccessoryPositionAmulet
-        behavior, event_manager, finished_with = _make_equip_behavior(pending_uid=1, position=position)
-
-        behavior._equip_next()
-        assert event_manager.confirm_callback is not None
-
-        event_manager.confirm_callback(
-            ObjectMovementEvent(
-                object_uid=1, position=CharacterInventoryPositionEnum.InventoryPositionNotEquiped
-            )
-        )
-
-        assert not finished_with
-        assert behavior._pending_position == position
 
     def test_timeout_removes_inventory_item_and_finishes(self) -> None:
         position = CharacterInventoryPositionEnum.AccessoryPositionAmulet

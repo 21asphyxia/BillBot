@@ -69,7 +69,7 @@ class Session:
         json: object = ...,
         headers: dict[str, str] | None = ...,
         verify: bool = ...,
-        timeout: float | int = ...,
+        timeout: float | int | tuple[float, float] = ...,
         allow_redirects: bool = ...,
     ) -> Response: ...
     def get(
@@ -78,7 +78,7 @@ class Session:
         *,
         params: Mapping[str, object] | None = ...,
         verify: bool = ...,
-        timeout: float | int = ...,
+        timeout: float | int | tuple[float, float] = ...,
         allow_redirects: bool = ...,
     ) -> Response: ...
     def request(
@@ -91,7 +91,7 @@ class Session:
         json: object = ...,
         headers: dict[str, str] | None = ...,
         verify: bool = ...,
-        timeout: float | int = ...,
+        timeout: float | int | tuple[float, float] = ...,
         allow_redirects: bool = ...,
     ) -> Response: ...
     def mount(self, prefix: str, adapter: HTTPAdapter) -> None: ...

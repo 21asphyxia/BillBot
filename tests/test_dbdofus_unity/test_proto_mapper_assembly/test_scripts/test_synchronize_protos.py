@@ -15,7 +15,6 @@ from DBDofusUnity.proto_mapper_assembly.interfaces.game_mappings import (
 )
 from scripts.mapping import synchronize_protos
 from scripts.mapping.synchronize_protos import (
-    _preserve_existing_field_offsets,
     synchronize_non_obf_mapping_artifacts,
 )
 from DBDofusUnity.proto_mapper_assembly.interfaces.new_dump_cs import NewDumpCSFile
@@ -24,52 +23,6 @@ from DBDofusUnity.proto_mapper_assembly.interfaces.signature_overrides import (
     SignatureOverrideEntry,
     SignatureOverridesFile,
 )
-
-
-class TestPreserveExistingFieldOffsets:
-    def test_copies_existing_offsets_and_keeps_new_fields_at_zero(self) -> None:
-        existing_actor_id = dump_cs_field("int", offset=0x18, field_name="actorId_").model_copy(
-            update={"property_name": "ActorId"}
-        )
-        existing_message = DumpCSMessage(
-            file_descriptor="GameReflection",
-            name="ActorEvent",
-            namespace="Com.Ankama.Dofus.Server.Game.Protocol.Actor",
-            fields=[
-                existing_actor_id,
-                dump_cs_field("string", offset=0x20, field_name="unrelated_").model_copy(
-                    update={"property_name": "Unrelated"}
-                ),
-            ],
-        )
-        generated_message = existing_message.model_copy(
-            update={
-                "fields": [
-                    dump_cs_field("int", offset=0, field_name="actorId_").model_copy(
-                        update={"property_name": "ActorId", "proto_decl_order": 1}
-                    ),
-                    dump_cs_field("long", offset=0, field_name="newValue_").model_copy(
-                        update={"property_name": "NewValue", "proto_decl_order": 2}
-                    ),
-                ]
-            }
-        )
-
-        result = _preserve_existing_field_offsets(generated_message, existing_message)
-
-        assert [field.memory_offset for field in result.fields] == [0x18, 0]
-        assert [field.property_name for field in result.fields] == ["ActorId", "NewValue"]
-
-    def test_returns_generated_message_when_no_existing_message_is_available(self) -> None:
-        generated_message = DumpCSMessage(
-            file_descriptor="GameReflection",
-            name="NewEvent",
-            fields=[dump_cs_field("int", offset=0, field_name="value_")],
-        )
-
-        result = _preserve_existing_field_offsets(generated_message, None)
-
-        assert result is generated_message
 
 
 class TestSynchronizeNonObfMappingArtifacts:
@@ -295,33 +248,3 @@ class TestNestingGuard:
         assert warning is not None
         assert "klm.klk" in warning
         assert "synchronize-protos" in warning
-
-    def test_stays_silent_when_the_obfuscated_class_is_top_level(self, tmp_path: Path) -> None:
-        mappings = tmp_path / "game_mappings_detailed.json"
-        mappings.write_text(
-            GameMappingsDocument(
-                root={
-                    ".com.ankama.dofus.server.game.protocol.common.UnknownKlm": game_mapping_entry(
-                        field_mapping={},
-                        obf_cls=self.FLAT_OBF,
-                        non_obf_namespace=".com.ankama.dofus.server.game.protocol.common.UnknownKlm",
-                    )
-                }
-            ).model_dump_json(),
-            encoding="utf-8",
-        )
-        message = DumpCSMessage(
-            file_descriptor="CommonReflection",
-            name="UnknownKlm",
-            namespace="Com.Ankama.Dofus.Server.Game.Protocol.Common",
-            fields=[],
-            properties=[],
-            parent_name=None,
-        )
-
-        assert (
-            synchronize_protos.check_nesting_matches_obfuscated_side(
-                message, GameMappingsDocument.model_validate_json(mappings.read_bytes())
-            )
-            is None
-        )

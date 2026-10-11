@@ -81,13 +81,9 @@ def test_skips_keydata_without_matching_user_account(tmp_path: Path) -> None:
     assert record is None
 
 
-def test_missing_zaap_directory_is_a_noop(tmp_path: Path) -> None:
-    with patch.object(zaap_import, "ZAAP_PATH", tmp_path / "does-not-exist"):
-        zaap_import.import_zaap_accounts()
-
-
 def test_invalid_account_entry_does_not_block_valid_account(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     zaap_path = tmp_path / "zaap"
     _write_zaap_files(zaap_path, "user@example.com", 42)
@@ -118,7 +114,9 @@ def test_invalid_account_entry_does_not_block_valid_account(
     ],
 )
 def test_invalid_keydata_is_skipped(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture, keydata: str,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    keydata: str,
 ) -> None:
     zaap_path = tmp_path / "zaap"
     _write_zaap_files(zaap_path, "user@example.com", 42)

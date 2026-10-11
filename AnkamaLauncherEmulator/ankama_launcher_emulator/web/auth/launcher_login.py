@@ -202,7 +202,8 @@ async def authenticate(options: AuthenticationOptions) -> AuthenticationResult:
 
         logger.info("[OAuth] Access token: %s...", token_res.access_token[:20])
         logger.info("[OAuth] Exchanging OAuth tokens for HAAPI API key...")
-        api_key_result = refresh_api_key_from_oauth(
+        api_key_result = await asyncio.to_thread(
+            refresh_api_key_from_oauth,
             token_res.access_token,
             token_res.refresh_token,
             proxy_url=options.proxy_url,
@@ -217,7 +218,7 @@ async def authenticate(options: AuthenticationOptions) -> AuthenticationResult:
             login=options.email,
             proxy_url=options.proxy_url,
         )
-        account_info = haapi.signOnWithApiKey(ZAAP_GAME_ID)
+        account_info = await asyncio.to_thread(haapi.signOnWithApiKey, ZAAP_GAME_ID)
         certificate = await resolve_shield(
             haapi,
             account_info,
@@ -236,7 +237,8 @@ async def authenticate(options: AuthenticationOptions) -> AuthenticationResult:
         if certificate is not None:
             logger.info("[OAuth] Securing HAAPI API key with certificate...")
             certificate_hash = CryptoHelper.generateHashFromCertif(certificate)
-            api_key_result = refresh_api_key_from_oauth(
+            api_key_result = await asyncio.to_thread(
+                refresh_api_key_from_oauth,
                 token_res.access_token,
                 token_res.refresh_token,
                 cert_id=certificate.id,
@@ -253,7 +255,7 @@ async def authenticate(options: AuthenticationOptions) -> AuthenticationResult:
                 api_key_result.account_id,
             )
 
-        if account_info.account is None or not account_info.account.nickname:
+        if not account_info.account.nickname:
             for retry in range(5):
                 nickname = generate_nickname()
                 logger.info(
@@ -261,7 +263,7 @@ async def authenticate(options: AuthenticationOptions) -> AuthenticationResult:
                     nickname,
                 )
                 try:
-                    haapi.set_nickname_with_api_key(nickname)
+                    await asyncio.to_thread(haapi.set_nickname_with_api_key, nickname)
                 except HTTPError:
                     continue
                 else:

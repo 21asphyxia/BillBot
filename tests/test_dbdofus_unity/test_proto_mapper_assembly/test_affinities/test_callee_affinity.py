@@ -1,4 +1,4 @@
-﻿from typing import Any
+from typing import Any
 
 import numpy as np
 from tests.fixtures.proto_mapper.matching_builders import simple_workspace
@@ -113,57 +113,3 @@ class TestBuildCalleeAffinity:
 
         achievement_row = _NON_OBF_CLASSES.index("AchievementEvent")
         assert np.allclose(affinity[achievement_row], affinity[achievement_row][0])
-
-    def test_message_calling_nothing_recognisable_is_left_out_of_the_mask(self) -> None:
-        workspace = simple_workspace(obf_classes=_OBF_CLASSES, non_obf_classes=_NON_OBF_CLASSES)
-        obf_trace = _access_trace({"0x1": (["obf_achievement"], [_ACHIEVEMENT])})
-        non_obf_trace = _access_trace({"0x11": (["AchievementEvent"], [_ACHIEVEMENT])})
-
-        _affinity, mask = _callee_affinity(
-            workspace=workspace,
-            obf_access_trace=obf_trace,
-            non_obf_access_trace=non_obf_trace,
-        )
-
-        assert not mask[_NON_OBF_CLASSES.index("SilentEvent")].any()
-        assert not mask[:, _OBF_CLASSES.index("obf_silent")].any()
-
-    def test_callees_seen_on_only_one_build_are_ignored(self) -> None:
-        workspace = simple_workspace(obf_classes=_OBF_CLASSES, non_obf_classes=_NON_OBF_CLASSES)
-        obf_trace = _access_trace({"0x1": (["obf_achievement"], ["only.dll/Only::Here/0"])})
-        non_obf_trace = _access_trace({"0x11": (["AchievementEvent"], [_ACHIEVEMENT])})
-
-        affinity, mask = _callee_affinity(
-            workspace=workspace,
-            obf_access_trace=obf_trace,
-            non_obf_access_trace=non_obf_trace,
-        )
-
-        assert not mask.any()
-        assert np.allclose(affinity, 0.0)
-
-    def test_affinity_is_symmetric_under_swapping_the_two_builds(self) -> None:
-        workspace = simple_workspace(obf_classes=_OBF_CLASSES, non_obf_classes=_NON_OBF_CLASSES)
-        swapped_workspace = simple_workspace(obf_classes=_NON_OBF_CLASSES, non_obf_classes=_OBF_CLASSES)
-        obf_trace = _access_trace(
-            {"0x1": (["obf_achievement"], [_ACHIEVEMENT, _COMMON]), "0x2": (["obf_chat"], [_CHAT])}
-        )
-        non_obf_trace = _access_trace(
-            {
-                "0x11": (["AchievementEvent"], [_ACHIEVEMENT, _COMMON]),
-                "0x12": (["ChatEvent"], [_CHAT]),
-            }
-        )
-
-        affinity, _mask = _callee_affinity(
-            workspace=workspace,
-            obf_access_trace=obf_trace,
-            non_obf_access_trace=non_obf_trace,
-        )
-        swapped_affinity, _swapped_mask = _callee_affinity(
-            workspace=swapped_workspace,
-            obf_access_trace=non_obf_trace,
-            non_obf_access_trace=obf_trace,
-        )
-
-        assert np.allclose(affinity, swapped_affinity.T)

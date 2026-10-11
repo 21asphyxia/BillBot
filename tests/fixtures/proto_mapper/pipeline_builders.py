@@ -1,4 +1,4 @@
-﻿from dataclasses import dataclass
+from dataclasses import dataclass
 
 from tests.fixtures.proto_mapper.enum_builders import enum_function_ref
 from tests.fixtures.proto_mapper.field_builders import dump_field, msg_typed_field
@@ -10,20 +10,17 @@ from tests.fixtures.proto_mapper.message_builders import (
     field_signature,
     message_signature,
 )
-from tests.fixtures.proto_mapper.signatures import (
-    builder_function_access_signature,
-)
 
 from DBDofusUnity.proto_mapper_assembly.interfaces.matching_inputs import MatchingInputs
 from DBDofusUnity.proto_mapper_assembly.interfaces.assembly_access import (
-    AccessAtomSignature,
     AccessTraceDocument,
-    FieldAccessSignatures,
-    FunctionAccessSignature,
     MessageAccessSignature,
-    ReturnRole,
 )
-from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCSMessage, DumpCSMessageField, FieldKey
+from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import (
+    DumpCSMessage,
+    DumpCSMessageField,
+    FieldKey,
+)
 from DBDofusUnity.proto_mapper_assembly.interfaces.enum_mapping import (
     EnumMemberGroup,
     EnumSignatureEntry,
@@ -47,16 +44,6 @@ class OverrideOnlyInputs:
     bootstrap_messages_by_cls: dict[str, DumpCSMessage]
     non_obf_messages_by_cls: dict[str, DumpCSMessage]
     non_obf_signatures_by_cls: dict[str, MessageAccessSignature]
-
-
-def bootstrap_repeated_field() -> DumpCSMessageField:
-    return msg_typed_field(
-        field_name="entities_states_",
-        property_name="entities_states",
-        offset=32,
-        clr_type="RepeatedField<iyu>",
-        category=FieldCategoryEnum.REPEATED,
-    )
 
 
 def signature_override_at_offset(
@@ -133,50 +120,6 @@ def enum_hint_override(
                     signature=enum_signature(member_value_to_name),
                 )
             }
-        },
-    )
-
-
-def builder_stored_access_function_signature(*, offset: int, access_index: int) -> FunctionAccessSignature:
-    number_shape = FieldTypeShape(FieldCategoryEnum.NUMBER, None, None)
-    return builder_function_access_signature(
-        return_role=ReturnRole.VOID,
-        takes_message_parameter=False,
-        size=64,
-        self_accesses=[
-            AccessAtomSignature(
-                entry_type="field",
-                access_kind="write",
-                field_type_shape=number_shape,
-                field_offset=offset,
-                index_in_function=access_index,
-            )
-        ],
-        foreign_access_summary=[],
-    )
-
-
-def signature_override_with_indexed_access(
-    *, offset: int = 40, access_index: int = 7
-) -> SignatureOverrideEntry:
-    number_shape = FieldTypeShape(FieldCategoryEnum.NUMBER, None, None)
-    indexed_field_access = AccessAtomSignature(
-        entry_type="field",
-        access_kind="write",
-        field_type_shape=number_shape,
-        field_offset=offset,
-        index_in_function=access_index,
-    )
-    return SignatureOverrideEntry(
-        function_signatures=[
-            builder_stored_access_function_signature(offset=offset, access_index=access_index)
-        ],
-        field_signatures={
-            "field": FieldAccessSignatures(
-                field_key=FieldKey(offset, "field"),
-                field_type_shape=number_shape,
-                accesses=[indexed_field_access],
-            )
         },
     )
 

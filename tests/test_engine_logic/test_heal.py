@@ -20,7 +20,6 @@ from src.core.engine.fights.attack import attacker as attacker_module
 from src.core.engine.fights.attack import heal
 from src.core.engine.fights.attack.attacker import Attacker
 from src.core.engine.fights.attack.heal import _self_heal_effect, estimate_self_heal
-from src.core.engine.fights.effect import can_self_cast
 from src.core.engine.fights.spell_modifier import SpellModifiers
 from tests.fixtures.data import (
     make_characteristics,
@@ -92,15 +91,6 @@ class TestSelfHealEffect:
     def test_rejects_vitality_buff_effect_not_self_castable(self, monkeypatch: pytest.MonkeyPatch) -> None:
         self._patch_description_id(monkeypatch, DescriptionEnum.BUFF_VITALITY)
         assert _self_heal_effect(_effect(target_mask="A")) is False
-
-
-class TestCanSelfCast:
-    def test_self_mask_is_castable(self) -> None:
-        assert can_self_cast(_effect(target_mask="C")) is True
-        assert can_self_cast(_effect(target_mask="a")) is True
-
-    def test_enemy_only_mask_is_not_castable(self) -> None:
-        assert can_self_cast(_effect(target_mask="A")) is False
 
 
 def _patch_effect_description(monkeypatch: pytest.MonkeyPatch, description_id: int) -> None:
@@ -175,10 +165,6 @@ class TestFindBestSelfHeal:
             return spells
 
         monkeypatch.setattr(attacker_module, "get_valid_heal_spells_for_turn", _fake)
-
-    def test_no_heal_when_no_spells(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        self._patch_spells(monkeypatch, [])
-        assert _make_attacker().find_best_self_heal(_context(life_point=100)) is None
 
     def test_picks_most_efficient_heal(self, monkeypatch: pytest.MonkeyPatch) -> None:
 

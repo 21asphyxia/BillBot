@@ -1,4 +1,3 @@
-from collections import Counter
 from collections.abc import Callable, Sequence
 
 import numpy as np
@@ -19,12 +18,6 @@ def ratio_similarity(left: int | None, right: int | None, max_value: int) -> flo
     delta_ratio = abs(left - right) / max_value
     assert 0 <= delta_ratio <= 1, f"{delta_ratio} invalid, left {left}, right {right}, max_value {max_value}"
     return 1 - delta_ratio
-
-
-def counter_overlap_similarity(*, left_counter: Counter[str], right_counter: Counter[str]) -> float:
-    return counter_profile_overlap_similarity(
-        left=CounterProfile(left_counter), right=CounterProfile(right_counter)
-    )
 
 
 def counter_profile_overlap_similarity(*, left: CounterProfile, right: CounterProfile) -> float:

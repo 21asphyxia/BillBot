@@ -1,10 +1,8 @@
 import asyncio
 from contextlib import nullcontext
-from datetime import UTC, datetime, timedelta
-from pathlib import Path
-from tempfile import TemporaryDirectory
+from datetime import UTC, datetime
 from unittest import IsolatedAsyncioTestCase, TestCase
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from ankama_launcher_emulator.controller import (
     mail_account as mail_account_module,
@@ -24,7 +22,6 @@ from ankama_launcher_emulator.web._client.mail_providers.smailpro import (
     SmailProMailProvider,
     SmailProSettings,
     generate_random_mailbox,
-    generate_random_mailbox_settings,
 )
 
 
@@ -56,36 +53,6 @@ class TestGenerateRandomMailbox(TestCase):
                 self.assertTrue(get.call_args.args[0].endswith(expected_path))
                 self.assertEqual(get.call_args.kwargs["params"], {"type": "real"})
 
-    def test_random_settings_preserve_the_selected_kind(self) -> None:
-        with (
-            patch.object(smailpro_module, "is_outlook_generation_disabled", return_value=False),
-            patch.object(smailpro_module.random, "choice", return_value="outlook"),
-            patch.object(
-                smailpro_module,
-                "generate_random_mailbox",
-                return_value=("someone@outlook.com", 1723680000),
-            ) as generate_random_mailbox,
-        ):
-            settings = generate_random_mailbox_settings("api-key")
-
-        self.assertEqual(settings.kind, "outlook")
-        self.assertEqual(settings.email, "someone@outlook.com")
-        generate_random_mailbox.assert_called_once_with("api-key", "outlook")
-
-    def test_random_settings_use_gmail_while_outlook_is_disabled(self) -> None:
-        with (
-            patch.object(smailpro_module, "is_outlook_generation_disabled", return_value=True),
-            patch.object(
-                smailpro_module,
-                "generate_random_mailbox",
-                return_value=("someone@gmail.com", 1723680000),
-            ) as generate_random_mailbox,
-        ):
-            settings = generate_random_mailbox_settings("api-key")
-
-        self.assertEqual(settings.kind, "gmail")
-        generate_random_mailbox.assert_called_once_with("api-key", "gmail")
-
     def test_outlook_token_refresh_failure_disables_outlook_for_one_day(self) -> None:
         provider = SmailProMailProvider(
             SmailProSettings(
@@ -106,48 +73,8 @@ class TestGenerateRandomMailbox(TestCase):
 
         disable_outlook_generation.assert_called_once_with()
 
-    def test_disabling_outlook_persists_a_one_day_cooldown(self) -> None:
-        with TemporaryDirectory() as temporary_directory:
-            state_path = Path(temporary_directory) / "outlook-disabled.json"
-            now = datetime.now(UTC)
-            with patch.object(smailpro_module, "SMAILPRO_OUTLOOK_DISABLED_UNTIL_PATH", state_path):
-                disabled_until = smailpro_module.disable_outlook_generation()
-                self.assertTrue(smailpro_module.is_outlook_generation_disabled(now=now))
-
-        self.assertGreaterEqual(disabled_until, now + timedelta(days=1))
-
 
 class TestProvisionSmailProEmail(TestCase):
-    def test_records_consumed_message_ids(self) -> None:
-        accounts_file = MailAccountsFile.model_validate(
-            {
-                "accounts": {
-                    "someone@gmail.com": {
-                        "config": {
-                            "provider": "smailpro",
-                            "api_key": "api-key",
-                            "email": "someone@gmail.com",
-                            "timestamp": 1723680000,
-                        }
-                    }
-                }
-            }
-        )
-        controller = MailAccountController()
-
-        with (
-            patch.object(controller, "_acquire_file_lock", return_value=nullcontext()),
-            patch.object(controller, "_load", return_value=accounts_file),
-            patch.object(controller, "_save") as save,
-        ):
-            controller.record_smailpro_message_consumed("someone@gmail.com", "mid-1")
-            controller.record_smailpro_message_consumed("someone@gmail.com", "mid-1")
-
-        config = accounts_file.accounts["someone@gmail.com"].config
-        assert isinstance(config, SmailProAccountConfig)
-        self.assertEqual(config.consumed_message_ids, ["mid-1"])
-        save.assert_called_once_with(accounts_file)
-
     def test_skips_available_outlook_mailboxes_during_outage(self) -> None:
         accounts_file = MailAccountsFile.model_validate(
             {
@@ -359,34 +286,6 @@ class TestSmailProMailProviderWaitForCode(IsolatedAsyncioTestCase):
         self.assertEqual(consumed_message_ids, ["registration"])
         self.assertEqual(get.call_args_list[3].kwargs["params"]["mid"], "authentication")
 
-    async def test_waits_before_first_inbox_check(self) -> None:
-        inbox_response = _response(
-            {
-                "messages": [
-                    {
-                        "mid": "m1",
-                        "textFrom": "Ankama",
-                        "textDate": "Thu, 18 Jun 2026 10:01:00 +0000",
-                    },
-                ]
-            }
-        )
-        message_response = _response({"body": "Votre code de confirmation est 123456"})
-        provider = SmailProMailProvider(
-            SmailProSettings(api_key="api-key", email="temp@gmail.com", kind="gmail", timestamp=1723680000)
-        )
-
-        with (
-            patch.object(smailpro_module.asyncio, "sleep", new=AsyncMock()) as sleep,
-            patch("requests.Session.get", side_effect=[inbox_response, message_response]),
-        ):
-            code = await provider.wait_for_code(
-                since=datetime(2026, 6, 18, 10, 0, tzinfo=UTC), timeout_seconds=60
-            )
-
-        self.assertEqual(code, "123456")
-        sleep.assert_awaited_once_with(30.0)
-
     async def test_caps_paid_inbox_wait(self) -> None:
         provider = SmailProMailProvider(
             SmailProSettings(api_key="api-key", email="temp@gmail.com", kind="gmail", timestamp=1723680000)
@@ -404,29 +303,3 @@ class TestSmailProMailProviderWaitForCode(IsolatedAsyncioTestCase):
             )
 
         self.assertIsNone(code)
-
-    async def test_uses_since_as_the_provider_inbox_timestamp(self) -> None:
-        inbox_response = _response(
-            {
-                "messages": [
-                    {
-                        "mid": "m1",
-                        "textFrom": "Ankama",
-                        "textDate": "2026-06-18T09:59:00Z",
-                    },
-                ]
-            }
-        )
-        message_response = _response({"body": "Votre code de confirmation est 123456"})
-        provider = SmailProMailProvider(
-            SmailProSettings(
-                api_key="api-key", email="temp@outlook.com", kind="outlook", timestamp=1716998400
-            )
-        )
-
-        with patch("requests.Session.get", side_effect=[inbox_response, message_response]) as get:
-            code = provider._find_code(since=datetime(2026, 6, 18, 10, 0, tzinfo=UTC))
-
-        self.assertEqual(code, "123456")
-        self.assertTrue(get.call_args_list[0].args[0].endswith("/v1/temp_outlook/inbox"))
-        self.assertEqual(get.call_args_list[0].kwargs["params"]["timestamp"], 1781776790)

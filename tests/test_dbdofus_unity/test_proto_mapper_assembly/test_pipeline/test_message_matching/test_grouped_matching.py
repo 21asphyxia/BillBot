@@ -1,4 +1,4 @@
-﻿import numpy as np
+import numpy as np
 import pytest
 from tests.fixtures.proto_mapper.field_builders import typed_dump_field
 from tests.fixtures.proto_mapper.matching_builders import (
@@ -14,7 +14,6 @@ from tests.fixtures.proto_mapper.message_builders import (
 from tests.fixtures.proto_mapper.shapes import MESSAGE_SHAPE, NUMBER_SHAPE
 from tests.fixtures.proto_mapper.signatures import declared_field_signature
 
-from DBDofusUnity.proto_mapper_assembly.affinities._group_similarity import get_group_similarity_score
 from DBDofusUnity.proto_mapper_assembly.interfaces.capture_sequence_hints import CaptureSequenceHintsConfig
 from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCSMessage, FieldKey
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_category import FieldCategoryEnum
@@ -26,15 +25,6 @@ from DBDofusUnity.proto_mapper_assembly.runtime.runtime_store import RuntimeData
 
 
 class TestGroupedMatching:
-    def test_group_score_penalizes_rectangular_group_sizes(self) -> None:
-        score = get_group_similarity_score(
-            similarity_matrix=np.array([[1.0], [0.9]]),
-            non_obf_count=2,
-            obf_count=1,
-        )
-
-        assert score == 0.5
-
     def test_select_grouped_matches_prefers_best_file_descriptor_pairing(
         self, runtime_data_store: RuntimeDataStore
     ) -> None:

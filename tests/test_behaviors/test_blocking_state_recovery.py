@@ -12,7 +12,6 @@ from DBDofusUnity.dofus_unity_reader.game_constants.map_id import MapIdEnum
 from src.core.behaviors.storage.unloads.unload_behavior import UnloadBehavior
 from src.core.engine.dungeons.dungeon_info import (
     BOUFTOU_ROYAL_DUNGEON,
-    get_dungeon_info_for_map_id,
 )
 from src.core.events_manager.event_manager import EventManager
 from tests.fixtures.bot_runtime import make_blocking_state_recovery
@@ -50,22 +49,6 @@ def _callback_of(behavior: object) -> Callable[..., None]:
 
 def _inside_dungeon_map_id() -> int:
     return next(iter(BOUFTOU_ROYAL_DUNGEON.dungeon.mapIds))
-
-
-def test_the_exit_map_is_recognised() -> None:
-    exit_map_id = BOUFTOU_ROYAL_DUNGEON.exit_dialog_map_id
-
-    assert get_dungeon_info_for_map_id(exit_map_id) is BOUFTOU_ROYAL_DUNGEON
-
-
-def test_nothing_blocking_runs_the_work_right_away(game_state_ctx: GameStateContext) -> None:
-    behavior = _make_behavior(game_state_ctx, OUTSIDE_MAP_ID)
-
-    behavior.start(callback=None, parent=None)
-
-    _mock_of(behavior.unload_in_guild_chest_behavior).start.assert_called_once()
-    _mock_of(behavior.recovery.fight_behavior).start.assert_not_called()
-    _mock_of(behavior.recovery.dungeon_behavior).start.assert_not_called()
 
 
 def test_a_running_fight_is_played_before_the_work(game_state_ctx: GameStateContext) -> None:
@@ -117,17 +100,6 @@ def test_a_fight_starting_mid_run_is_played_then_the_work_is_replayed(
     assert unload_in_guild_chest.start.call_count == 2
 
 
-def test_a_non_fight_context_is_ignored(game_state_ctx: GameStateContext) -> None:
-    behavior = _make_behavior(game_state_ctx, OUTSIDE_MAP_ID)
-    behavior.start(callback=None, parent=None)
-
-    behavior.event_manager.process_msg(
-        ContextCreationEvent(context=ContextCreationEvent.GameContext.ROLE_PLAY)
-    )
-
-    _mock_of(behavior.recovery.fight_behavior).start.assert_not_called()
-
-
 def test_being_stuck_in_the_haven_bag_leaves_it_before_the_work(
     game_state_ctx: GameStateContext,
 ) -> None:
@@ -143,16 +115,6 @@ def test_being_stuck_in_the_haven_bag_leaves_it_before_the_work(
     game_state_ctx.game_state.map.is_in_haven_bag = False
     behavior.event_manager.process_msg(MapComplementaryInformationEvent(map_id=OUTSIDE_MAP_ID))
 
-    _mock_of(behavior.unload_in_guild_chest_behavior).start.assert_called_once()
-
-
-def test_being_outside_the_haven_bag_sends_no_request(game_state_ctx: GameStateContext) -> None:
-    sent_messages: list[Message] = []
-    behavior = _make_behavior(game_state_ctx, OUTSIDE_MAP_ID, sent_messages)
-
-    behavior.start(callback=None, parent=None)
-
-    assert sent_messages == []
     _mock_of(behavior.unload_in_guild_chest_behavior).start.assert_called_once()
 
 

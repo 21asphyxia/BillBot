@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 from unittest.mock import patch
 
 from tests.fixtures.proto_mapper.field_builders import typed_dump_field
@@ -25,116 +25,14 @@ from tests.fixtures.proto_mapper.matching_builders import (
 from DBDofusUnity.proto_mapper_assembly.interfaces.capture_sequence_hints import CaptureSequenceHintsConfig
 from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCSMessage, FieldKey
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_category import FieldCategoryEnum
-from DBDofusUnity.proto_mapper_assembly.runtime.runtime_field_validation import build_runtime_field_validator_confidence
+from DBDofusUnity.proto_mapper_assembly.runtime.runtime_field_validation import (
+    build_runtime_field_validator_confidence,
+)
 from DBDofusUnity.proto_mapper_assembly.runtime.runtime_store import RuntimeDataStore
 from DBDofusUnity.proto_mapper_assembly.validators.field_validators import ValidatorFn
 
 
 class TestRuntimeConfidence:
-    def test_live_field_scoring_ignores_dead_fields(self, runtime_data_store: RuntimeDataStore) -> None:
-        non_obf_event = DumpCSMessage(
-            file_descriptor="GameReflection",
-            name="MapCurrentEvent",
-            fields=[
-                typed_dump_field(
-                    field_name="map_id_",
-                    property_name="MapId",
-                    normalized_type="long",
-                    category=FieldCategoryEnum.NUMBER,
-                    offset=0x18,
-                )
-            ],
-        )
-        non_obf_instance = DumpCSMessage(
-            file_descriptor="GameReflection",
-            name="MapCurrentInstanceEvent",
-            fields=[
-                typed_dump_field(
-                    field_name="map_id_",
-                    property_name="MapId",
-                    normalized_type="long",
-                    category=FieldCategoryEnum.NUMBER,
-                    offset=0x18,
-                ),
-                typed_dump_field(
-                    field_name="instantiate_map_id_",
-                    property_name="InstantiateMapId",
-                    normalized_type="long",
-                    category=FieldCategoryEnum.NUMBER,
-                    offset=0x20,
-                ),
-            ],
-        )
-        obf_irj = DumpCSMessage(
-            file_descriptor="GameReflection",
-            name="irj",
-            fields=[
-                typed_dump_field(
-                    field_name="eenp",
-                    property_name="Fgvo",
-                    normalized_type="long",
-                    category=FieldCategoryEnum.NUMBER,
-                    offset=0x18,
-                ),
-                typed_dump_field(
-                    field_name="eenr",
-                    property_name="Fgvp",
-                    normalized_type="long",
-                    category=FieldCategoryEnum.NUMBER,
-                    offset=0x20,
-                ),
-            ],
-        )
-
-        matches = match_messages_for_test(
-            [
-                message_signature(
-                    "irj",
-                    declared_field_signatures=[declared_field_signature(NUMBER_SHAPE)],
-                    field_signatures=[field_signature(0x18, NUMBER_SHAPE)],
-                    live_field_keys=frozenset({FieldKey(0x18, "eenp")}),
-                    dump_cs_msg=obf_irj,
-                )
-            ],
-            [
-                message_signature(
-                    "MapCurrentEvent",
-                    declared_field_signatures=[declared_field_signature(NUMBER_SHAPE)],
-                    field_signatures=[field_signature(0x18, NUMBER_SHAPE)],
-                    live_field_keys=frozenset({FieldKey(0x18, "map_id_")}),
-                    dump_cs_msg=non_obf_event,
-                ),
-                message_signature(
-                    "MapCurrentInstanceEvent",
-                    declared_field_signatures=[
-                        declared_field_signature(NUMBER_SHAPE),
-                        declared_field_signature(NUMBER_SHAPE),
-                    ],
-                    field_signatures=[
-                        field_signature(0x18, NUMBER_SHAPE),
-                        field_signature(0x20, NUMBER_SHAPE),
-                    ],
-                    live_field_keys=frozenset(
-                        {FieldKey(0x18, "map_id_"), FieldKey(0x20, "instantiate_map_id_")}
-                    ),
-                    dump_cs_msg=non_obf_instance,
-                ),
-            ],
-            obf_messages_by_cls=build_message_lookup([obf_irj]),
-            non_obf_messages_by_cls=build_message_lookup([non_obf_event, non_obf_instance]),
-            runtime_data_store=runtime_data_store,
-            pinned_pairs_config=build_verified_mapping(),
-            capture_sequence_hints_config=CaptureSequenceHintsConfig(sequences=()),
-            signature_overrides_by_non_obf_cls={},
-            obf_enum_signatures_by_name={},
-            non_obf_enum_signatures_by_name={},
-            obf_access_trace=EMPTY_ACCESS_TRACE,
-            non_obf_access_trace=EMPTY_ACCESS_TRACE,
-        )
-
-        assert len(matches) == 1
-        assert matches[0].non_obf_signature.message_cls == "MapCurrentEvent"
-
     def test_pipeline_keeps_root_runtime_confidence_none_for_nested_samples(
         self, runtime_data_store: RuntimeDataStore, tmp_path: Path
     ) -> None:

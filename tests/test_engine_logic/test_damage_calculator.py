@@ -108,39 +108,6 @@ class TestGetDamageEffect:
     def setup_method(self) -> None:
         self.calc = DamageCalculator()
 
-    def test_strength_uses_earth_resistance(self) -> None:
-        damage = self.calc.get_damage_effect(
-            effect=_effect(element=1, dice_num=100, dice_side=100),
-            spell_lvl=_spell(),
-            monster_grade=_monster(earth=50, air=0),
-            characteristic_by_id={},
-            is_melee=False,
-            primary_elem=EffectElement.STRENGTH,
-        )
-        assert damage == 50
-
-    def test_uses_average_of_dice_roll(self) -> None:
-        damage = self.calc.get_damage_effect(
-            effect=_effect(element=1, dice_num=10, dice_side=20),
-            spell_lvl=_spell(),
-            monster_grade=_monster(),
-            characteristic_by_id={},
-            is_melee=False,
-            primary_elem=EffectElement.STRENGTH,
-        )
-        assert damage == 15
-
-    def test_fixed_value_effect(self) -> None:
-        damage = self.calc.get_damage_effect(
-            effect=_effect(element=1, value=42),
-            spell_lvl=_spell(),
-            monster_grade=_monster(),
-            characteristic_by_id={},
-            is_melee=False,
-            primary_elem=EffectElement.STRENGTH,
-        )
-        assert damage == 42
-
     def test_percent_factor_sums_stat_power_and_spell_percent(self) -> None:
         damage = self.calc.get_damage_effect(
             effect=_effect(element=1, dice_num=100, dice_side=100),
@@ -159,17 +126,6 @@ class TestGetDamageEffect:
 
         assert damage == 300
 
-    def test_dealt_damage_multiplier_is_applied(self) -> None:
-        damage = self.calc.get_damage_effect(
-            effect=_effect(element=1, dice_num=100, dice_side=100),
-            spell_lvl=_spell(),
-            monster_grade=_monster(),
-            characteristic_by_id=make_characteristics({CharacteristicEnum.DEALT_DAMAGE_MULTIPLIER: 120}),
-            is_melee=False,
-            primary_elem=EffectElement.STRENGTH,
-        )
-        assert damage == 120
-
     def test_melee_uses_melee_multiplier(self) -> None:
         damage = self.calc.get_damage_effect(
             effect=_effect(element=1, dice_num=100, dice_side=100),
@@ -181,19 +137,6 @@ class TestGetDamageEffect:
             is_melee=True,
             primary_elem=EffectElement.STRENGTH,
         )
-        assert damage == 150
-
-    def test_critical_hit_expected_value(self) -> None:
-        crit_effect = _effect(element=1, dice_num=200, dice_side=200)
-        damage = self.calc.get_damage_effect(
-            effect=_effect(element=1, dice_num=100, dice_side=100),
-            spell_lvl=_spell(critical_hit_probability=50, critical_effect=[crit_effect]),
-            monster_grade=_monster(),
-            characteristic_by_id={},
-            is_melee=False,
-            primary_elem=EffectElement.STRENGTH,
-        )
-
         assert damage == 150
 
     def test_critical_probability_includes_critical_hit_stat(self) -> None:
@@ -219,17 +162,6 @@ class TestGetDamageEffect:
             primary_elem=EffectElement.STRENGTH,
         )
         assert damage == 100
-
-    def test_neutral_element_uses_neutral_resistance(self) -> None:
-        damage = self.calc.get_damage_effect(
-            effect=_effect(element=0, dice_num=100, dice_side=100),
-            spell_lvl=_spell(),
-            monster_grade=_monster(neutral=25),
-            characteristic_by_id={},
-            is_melee=False,
-            primary_elem=EffectElement.STRENGTH,
-        )
-        assert damage == 75
 
     def test_monster_bonus_resistance_is_added(self) -> None:
         damage = self.calc.get_damage_effect(

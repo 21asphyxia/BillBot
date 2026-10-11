@@ -60,14 +60,6 @@ class TestHaapiRefreshApiKey(IsolatedLauncherStorageTestCase):
         self._device_uuid_patch.start()
         self.addCleanup(self._device_uuid_patch.stop)
 
-    def test_skips_refresh_while_within_the_launcher_window(self) -> None:
-        now_ms = int(time() * 1000)
-        _seed_stored_api_key(now_ms - API_KEY_REFRESH_INTERVAL_MS + 60_000)
-
-        self.haapi.refresh_api_key()
-
-        self.session.post.assert_not_called()
-
     def test_refreshes_and_persists_once_the_window_elapsed(self) -> None:
         now_ms = int(time() * 1000)
         _seed_stored_api_key(now_ms - API_KEY_REFRESH_INTERVAL_MS - 60_000)

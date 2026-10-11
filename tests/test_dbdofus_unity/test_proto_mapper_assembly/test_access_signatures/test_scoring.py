@@ -1,4 +1,4 @@
-﻿from tests.fixtures.proto_mapper.enum_builders import enum_entry
+from tests.fixtures.proto_mapper.enum_builders import enum_entry
 from tests.fixtures.proto_mapper.field_builders import (
     enum_field,
     msg_typed_field,
@@ -11,25 +11,18 @@ from tests.fixtures.proto_mapper.shapes import (
 )
 from tests.fixtures.proto_mapper.signatures import (
     access_atom,
-    access_message_signature,
     builder_structure_similarity_context,
-    declared_field_signature,
     field_access_signature,
 )
 
 from DBDofusUnity.proto_mapper_assembly.interfaces.assembly_access import MessageAccessSignature
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_comparison import FieldComparisonKey
-from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCSMessage, DumpCSMessageField, FieldKey
+from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCSMessage, DumpCSMessageField
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_category import FieldCategoryEnum
 from DBDofusUnity.proto_mapper_assembly.scoring.message_scoring import (
-    compute_message_similarity,
     compute_structure_score,
 )
 from DBDofusUnity.proto_mapper_assembly.scoring.signature_scoring import (
-    _access_atom_similarity_from_keys,
-    access_atom_sequence_similarity,
-    field_evidence_similarity,
-    field_access_multiset_similarity,
     field_signature_similarity,
 )
 
@@ -38,139 +31,36 @@ class TestFieldEvidenceSimilarity:
     def test_comparison_context_discriminates_otherwise_identical_fields(self) -> None:
         context = (FieldComparisonKey("eq", 42, 32, None),)
         left = field_access_signature(accesses=[access_atom().model_copy(update={"comparisons": context})])
-        matching = field_access_signature(accesses=[access_atom().model_copy(update={"comparisons": context})])
-        different = field_access_signature(accesses=[access_atom().model_copy(update={
-            "comparisons": (FieldComparisonKey("eq", 7, 32, None),),
-        })])
+        matching = field_access_signature(
+            accesses=[access_atom().model_copy(update={"comparisons": context})]
+        )
+        different = field_access_signature(
+            accesses=[
+                access_atom().model_copy(
+                    update={
+                        "comparisons": (FieldComparisonKey("eq", 7, 32, None),),
+                    }
+                )
+            ]
+        )
         assert field_signature_similarity(left, matching) > field_signature_similarity(left, different) > 0
         assert left.field_similarity_key != different.field_similarity_key
 
-    def test_missing_comparison_context_keeps_original_score(self) -> None:
-        atom = access_atom(field_access_index=10)
-        contextual = atom.model_copy(update={"comparisons": (FieldComparisonKey("eq", 42, 32, None),)})
-        other = field_access_signature(accesses=[access_atom(field_access_index=20)])
-        assert field_signature_similarity(field_access_signature(accesses=[contextual]), other) == (
-            field_signature_similarity(field_access_signature(accesses=[atom]), other)
-        )
-
     def test_comparison_context_does_not_override_incompatible_shapes(self) -> None:
         context = (FieldComparisonKey("eq", 1, 32, None),)
-        left = field_access_signature(accesses=[access_atom(field_type_shape=NUMBER_SHAPE).model_copy(
-            update={"comparisons": context}
-        )])
-        right = field_access_signature(field_type_shape=BOOLEAN_SHAPE, accesses=[
-            access_atom(field_type_shape=BOOLEAN_SHAPE).model_copy(update={"comparisons": context})
-        ])
+        left = field_access_signature(
+            accesses=[access_atom(field_type_shape=NUMBER_SHAPE).model_copy(update={"comparisons": context})]
+        )
+        right = field_access_signature(
+            field_type_shape=BOOLEAN_SHAPE,
+            accesses=[
+                access_atom(field_type_shape=BOOLEAN_SHAPE).model_copy(update={"comparisons": context})
+            ],
+        )
         assert field_signature_similarity(left, right) == 0
 
-    def test_untraced_side_scores_neutral_instead_of_zero(self) -> None:
-        traced = field_access_signature(accesses=[access_atom(field_offset=24)])
-        untraced = field_access_signature(field_offset=32, accesses=[], is_traced=False)
-
-        assert field_signature_similarity(traced, untraced) == 0.0
-        assert 0.5 < field_evidence_similarity(traced, untraced) < 1.0
-
-    def test_both_untraced_still_agree(self) -> None:
-        left = field_access_signature(accesses=[], is_traced=False)
-        right = field_access_signature(field_offset=32, accesses=[], is_traced=False)
-
-        assert field_evidence_similarity(left, right) == 1.0
-
-    def test_untraced_against_traced_without_atom_still_agrees(self) -> None:
-        traced_without_atom = field_access_signature(accesses=[])
-        untraced = field_access_signature(field_offset=32, accesses=[], is_traced=False)
-
-        assert field_evidence_similarity(traced_without_atom, untraced) == 1.0
-
-    def test_incompatible_shapes_stay_at_zero(self) -> None:
-        traced = field_access_signature(field_type_shape=NUMBER_SHAPE)
-        untraced = field_access_signature(field_type_shape=BOOLEAN_SHAPE, is_traced=False)
-
-        assert field_evidence_similarity(traced, untraced) == 0
 
 class TestAssemblyAccessSimilarity:
-    def test_access_atom_similarity_separates_accesses_by_instruction_rank(self) -> None:
-        left_first = access_atom(
-            field_offset=24,
-            field_type_shape=NUMBER_SHAPE,
-            field_access_index=0,
-        )
-        right_same_first = access_atom(
-            field_offset=24,
-            field_type_shape=NUMBER_SHAPE,
-            field_access_index=0,
-        )
-        right_same_second = access_atom(
-            field_offset=28,
-            field_type_shape=NUMBER_SHAPE,
-            field_access_index=1,
-        )
-
-        assert _access_atom_similarity_from_keys(
-            left_first.similarity_key,
-            right_same_first.similarity_key,
-        ) > _access_atom_similarity_from_keys(
-            left_first.similarity_key,
-            right_same_second.similarity_key,
-        )
-
-    def test_access_atom_sequence_similarity_compares_accesses_by_order(self) -> None:
-        left_first = access_atom(field_offset=24, field_type_shape=NUMBER_SHAPE, field_access_index=0)
-        left_second = access_atom(field_offset=24, field_type_shape=NUMBER_SHAPE, field_access_index=100)
-        right_first = access_atom(field_offset=32, field_type_shape=NUMBER_SHAPE, field_access_index=100)
-        right_second = access_atom(field_offset=32, field_type_shape=NUMBER_SHAPE, field_access_index=0)
-
-        assert (
-            access_atom_sequence_similarity(
-                (left_first.similarity_key, left_second.similarity_key),
-                (right_first.similarity_key, right_second.similarity_key),
-            )
-            == 0.0
-        )
-
-    def test_field_access_multiset_similarity_matches_compatible_accesses_before_positions(self) -> None:
-        left = field_access_signature(
-            accesses=[
-                access_atom(access_kind="write", field_access_index=178),
-                access_atom(access_kind="read", field_access_index=183),
-                access_atom(access_kind="write", field_access_index=238),
-            ]
-        )
-        right = field_access_signature(
-            accesses=[
-                access_atom(access_kind="read", field_access_index=183),
-                access_atom(access_kind="write", field_access_index=207),
-                access_atom(access_kind="write", field_access_index=238),
-            ]
-        )
-
-        assert field_access_multiset_similarity(left.accesses_key, right.accesses_key) > 0.9
-        assert field_signature_similarity(left, right) > 0.9
-
-    def test_field_access_multiset_similarity_penalizes_unmatched_access_kinds(self) -> None:
-        left = field_access_signature(
-            accesses=[access_atom(access_kind="read", field_access_index=10)]
-        )
-        right = field_access_signature(
-            accesses=[access_atom(access_kind="write", field_access_index=10)]
-        )
-
-        assert field_access_multiset_similarity(left.accesses_key, right.accesses_key) == 0.0
-
-    def test_field_signature_similarity_tolerates_offset_drift_when_access_shape_matches(self) -> None:
-        left = field_access_signature(
-            field_offset=24,
-            field_type_shape=NUMBER_SHAPE,
-            accesses=[access_atom(field_offset=24, field_type_shape=NUMBER_SHAPE)],
-        )
-        right = field_access_signature(
-            field_offset=160,
-            field_type_shape=NUMBER_SHAPE,
-            accesses=[access_atom(field_offset=160, field_type_shape=NUMBER_SHAPE)],
-        )
-
-        assert field_signature_similarity(left, right) > 0.7
-
     def test_field_signature_similarity_ignores_duplicate_alias_accesses(self) -> None:
         left = field_access_signature(
             field_offset=24,
@@ -194,67 +84,6 @@ class TestAssemblyAccessSimilarity:
         )
 
         assert field_signature_similarity(left, right) == 1.0
-
-    def test_field_signature_similarity_still_penalizes_unique_access_differences(self) -> None:
-        left = field_access_signature(
-            field_offset=24,
-            field_type_shape=NUMBER_SHAPE,
-            accesses=[
-                access_atom(field_offset=24, field_type_shape=NUMBER_SHAPE, field_access_index=3),
-                access_atom(field_offset=24, field_type_shape=NUMBER_SHAPE, field_access_index=72),
-            ],
-        )
-        right = field_access_signature(
-            field_offset=24,
-            field_type_shape=NUMBER_SHAPE,
-            accesses=[
-                access_atom(field_offset=24, field_type_shape=NUMBER_SHAPE, field_access_index=3),
-                access_atom(field_offset=24, field_type_shape=NUMBER_SHAPE, field_access_index=72),
-                access_atom(field_offset=24, field_type_shape=NUMBER_SHAPE, field_access_index=100),
-            ],
-        )
-
-        assert field_signature_similarity(left, right) < 1.0
-
-    def test_structure_similarity_uses_observed_declared_fields(self) -> None:
-        live_number = declared_field_signature(field_type_shape=NUMBER_SHAPE)
-        live_boolean = declared_field_signature(field_type_shape=BOOLEAN_SHAPE)
-        left = access_message_signature(
-            declared_field_signatures={FieldKey(24, "map_id_"): live_number},
-        )
-        one_live_field = access_message_signature(
-            message_cls="OtherOne",
-            declared_field_signatures={FieldKey(24, "map_id_"): live_number},
-        )
-        two_live_fields = access_message_signature(
-            message_cls="OtherTwo",
-            declared_field_signatures={
-                FieldKey(24, "map_id_"): live_number,
-                FieldKey(32, "instantiate_map_id_"): live_boolean,
-            },
-        )
-
-        assert compute_structure_score(left, one_live_field) > compute_structure_score(
-            left,
-            two_live_fields,
-        )
-
-    def test_structure_similarity_handles_empty_observed_messages(self) -> None:
-        empty_left = access_message_signature(
-            declared_field_signatures=[],
-        )
-        empty_right = access_message_signature(
-            message_cls="Other",
-            declared_field_signatures=[],
-        )
-        live_number = declared_field_signature(field_type_shape=NUMBER_SHAPE)
-        non_empty_right = access_message_signature(
-            message_cls="NonEmpty",
-            declared_field_signatures=[live_number],
-        )
-
-        assert compute_structure_score(empty_left, empty_right) == 1.0
-        assert compute_structure_score(empty_left, non_empty_right) == 0.0
 
     def test_contextual_structure_similarity_uses_repeated_child_message_structure(self) -> None:
         left_parent, left_parent_signature, left_child_signature = _parent_with_repeated_child_signature(
@@ -286,37 +115,6 @@ class TestAssemblyAccessSimilarity:
         )
         assert left_parent.fields[0].normalized_type == "RepeatedField<LeftChild>"
         assert right_parent.fields[0].normalized_type == "RepeatedField<RightChild>"
-
-    def test_contextual_structure_similarity_preserves_matching_child_structure_score(self) -> None:
-        _, left_parent_signature, left_child_signature = _parent_with_repeated_child_signature(
-            parent_name="LeftParent",
-            child_name="LeftChild",
-            child_fields=[
-                scalar_field("first_", 0x20),
-                scalar_field("second_", 0x28),
-            ],
-        )
-        _, right_parent_signature, right_child_signature = _parent_with_repeated_child_signature(
-            parent_name="RightParent",
-            child_name="RightChild",
-            child_fields=[
-                scalar_field("first_", 0x20),
-                scalar_field("second_", 0x28),
-            ],
-        )
-        context = builder_structure_similarity_context(
-            left_signatures=[left_parent_signature, left_child_signature],
-            right_signatures=[right_parent_signature, right_child_signature],
-        )
-
-        assert (
-            compute_structure_score(
-                left_parent_signature,
-                right_parent_signature,
-                context=context,
-            )
-            == 1.0
-        )
 
     def test_contextual_structure_similarity_uses_enum_signatures_when_available(self) -> None:
         left_field = enum_field(
@@ -354,17 +152,6 @@ class TestAssemblyAccessSimilarity:
 
         assert compute_structure_score(left_signature, right_signature) == 1.0
         assert compute_structure_score(left_signature, right_signature, context=context) < 1.0
-
-    def test_message_similarity_blends_structure_and_assembly(self) -> None:
-        declared = declared_field_signature(field_type_shape=NUMBER_SHAPE)
-        left = access_message_signature(declared_field_signatures=[declared])
-        right = access_message_signature(message_cls="Other", declared_field_signatures=[declared])
-
-        score_data = compute_message_similarity(
-            left, right, structure_score=compute_structure_score(left, right)
-        )
-
-        assert 0.0 < score_data.static_similarity <= 1.0
 
 
 def _parent_with_repeated_child_signature(

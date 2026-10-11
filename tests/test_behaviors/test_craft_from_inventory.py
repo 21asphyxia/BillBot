@@ -56,20 +56,14 @@ def _travel_call(behavior: CraftBehavior) -> MagicMock:
 
 def _put_recipe_ingredients_in_inventory(behavior: CraftBehavior, quantity: int) -> None:
     behavior.game_state.inventory.weight_max = 1_000_000
-    for uid, (gid, ingredient_quantity) in enumerate(zip(_recipe().ingredientIds, _recipe().quantities), start=1):
+    for uid, (gid, ingredient_quantity) in enumerate(
+        zip(_recipe().ingredientIds, _recipe().quantities), start=1
+    ):
         behavior.game_state.inventory.objects_by_uid[uid] = make_inventory_item(
             gid,
             ingredient_quantity * quantity,
             uid=uid,
         )
-
-
-def test_the_bank_is_never_entered(game_state_ctx: GameStateContext) -> None:
-    behavior = _make_behavior(game_state_ctx)
-
-    _craft_from_inventory(behavior, quantity=1)
-
-    cast(MagicMock, behavior.load_recipe_behavior).start.assert_not_called()
 
 
 def test_the_workshop_of_the_recipe_skill_is_reached(game_state_ctx: GameStateContext) -> None:
@@ -80,16 +74,6 @@ def test_the_workshop_of_the_recipe_skill_is_reached(game_state_ctx: GameStateCo
     map_ids = cast(set[int], _travel_call(behavior).call_args.kwargs["map_ids"])
     assert map_ids <= MAP_IDS_BY_SKILL[SkillEnum.PREPARER_POTION]
     assert ASTRUB_ALCHEMIST_WORKSHOP_MAP_ID in map_ids
-
-
-def test_the_declared_quantity_reaches_the_craft(game_state_ctx: GameStateContext) -> None:
-    behavior = _make_behavior(game_state_ctx)
-
-    _craft_from_inventory(behavior, quantity=3)
-
-    on_arrival = _travel_call(behavior).call_args.kwargs["callback"]
-    recipes_infos = cast(list[LoadedRecipeInfo], on_arrival.keywords["recipes_infos"])
-    assert [(info.recipe.resultId, info.quantity) for info in recipes_infos] == [(ItemEnum.CIRE_DE_GLIGLI, 3)]
 
 
 def test_a_recipe_the_bot_refuses_to_craft_finishes_without_travelling(

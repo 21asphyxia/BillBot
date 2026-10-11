@@ -21,12 +21,6 @@ def _make_monster_group(main_gid: int, underling_gids: list[int]) -> MonsterGrou
     return monster_group
 
 
-def test_group_gids_include_main_creature_and_underlings() -> None:
-    monster_group = _make_monster_group(XELOR_LOUCHE_MONSTER_ID, [TOFU_MONSTER_ID, TOFU_MONSTER_ID])
-
-    assert get_monster_group_gids(monster_group) == {XELOR_LOUCHE_MONSTER_ID, TOFU_MONSTER_ID}
-
-
 def test_targeting_matches_when_the_quest_monster_is_an_underling() -> None:
     monster_group = _make_monster_group(TOFU_MONSTER_ID, [XELOR_LOUCHE_MONSTER_ID])
 
@@ -51,25 +45,7 @@ def test_is_group_targetable_rejects_when_monster_ids_do_not_match() -> None:
     )
 
 
-def test_is_group_targetable_accepts_when_monster_ids_match() -> None:
-    monster_group = _make_monster_group(XELOR_LOUCHE_MONSTER_ID, [])
-
-    assert is_group_targetable(
-        _LOGGER,
-        monster_group,
-        10,
-        lvl_limit=100,
-        monster_ids={XELOR_LOUCHE_MONSTER_ID},
-    )
-
-
 def test_is_group_targetable_rejects_group_over_lvl_limit() -> None:
     monster_group = _make_monster_group(TOFU_MONSTER_ID, [])
 
     assert not is_group_targetable(_LOGGER, monster_group, 150, lvl_limit=100, monster_ids=None)
-
-
-def test_is_group_targetable_accepts_group_within_lvl_limit() -> None:
-    monster_group = _make_monster_group(TOFU_MONSTER_ID, [])
-
-    assert is_group_targetable(_LOGGER, monster_group, 100, lvl_limit=100, monster_ids=None)

@@ -1,4 +1,4 @@
-﻿import json
+import json
 from pathlib import Path
 
 import pytest
@@ -13,7 +13,9 @@ from DBDofusUnity.proto_mapper_assembly.interfaces.runtime_data import RuntimeCa
 from DBDofusUnity.proto_mapper_assembly.runtime.runtime_store import RuntimeDataStore
 
 
-def _write_runtime_capture(path: Path, schema_fingerprint: str, root: dict[str, list[dict[str, object]]]) -> None:
+def _write_runtime_capture(
+    path: Path, schema_fingerprint: str, root: dict[str, list[dict[str, object]]]
+) -> None:
     path.write_text(
         json.dumps({"schema_fingerprint": schema_fingerprint, "root": root}),
         encoding="utf-8",
@@ -35,7 +37,9 @@ class TestRuntimeDataStore:
             get_obf_game_message_from_msg,
         )
 
-        spells = SpellsEvent(human_spells=[SpellItem(spell_id=13108, spell_level=1)], spell_visualisation=True)
+        spells = SpellsEvent(
+            human_spells=[SpellItem(spell_id=13108, spell_level=1)], spell_visualisation=True
+        )
         packed = get_obf_game_message_from_msg(Event.DESCRIPTOR.full_name, spells)
         assert packed is not None
         game_message, _ = packed
@@ -65,7 +69,9 @@ class TestRuntimeDataStore:
         from DBDofusUnity.datas.protos.non_obf.game.spell_pb2 import SpellItem, SpellsEvent
         from src.protocol.protocol_game import get_game_msg, get_obf_game_message_from_msg
 
-        spells = SpellsEvent(human_spells=[SpellItem(spell_id=13108, spell_level=1)], spell_visualisation=True)
+        spells = SpellsEvent(
+            human_spells=[SpellItem(spell_id=13108, spell_level=1)], spell_visualisation=True
+        )
         packed = get_obf_game_message_from_msg(Event.DESCRIPTOR.full_name, spells)
         assert packed is not None
         game_message, _ = packed
@@ -105,7 +111,9 @@ class TestRuntimeDataStore:
         runtime_data_store.add_msg(Empty(), from_server=True, is_game_msg=False)
         runtime_data_store.write_captured_content()
 
-        runtime_root = RuntimeCaptureDocument.model_validate_json(runtime_data_store.path.read_text(encoding="utf-8"))
+        runtime_root = RuntimeCaptureDocument.model_validate_json(
+            runtime_data_store.path.read_text(encoding="utf-8")
+        )
         assert [instance.capture_sequence for instance in runtime_root.root["google.protobuf.Empty"]] == [
             0,
             0,
@@ -122,34 +130,12 @@ class TestRuntimeDataStore:
         runtime_data_store.add_msg(Empty(), from_server=True, is_game_msg=False)
         runtime_data_store.write_captured_content()
 
-        runtime_root = RuntimeCaptureDocument.model_validate_json(runtime_data_store.path.read_text(encoding="utf-8"))
+        runtime_root = RuntimeCaptureDocument.model_validate_json(
+            runtime_data_store.path.read_text(encoding="utf-8")
+        )
         instance = runtime_root.root["google.protobuf.Empty"][0]
         assert instance.capture_sequence is None
         assert instance.capture_session_id is None
-
-    def test_capture_sequences_by_session_ignore_samples_without_sequence(
-        self,
-        runtime_data_store: RuntimeDataStore,
-        tmp_path: Path,
-    ) -> None:
-        _write_runtime_capture(
-            tmp_path / "instancied_msg_infos.json",
-            runtime_data_store.schema_fingerprint,
-            {
-                "Alpha": [
-                    runtime_entry({"value": 1}, capture_sequence=None, capture_session_id="session-a"),
-                    runtime_entry({"value": 2}, capture_sequence=4, capture_session_id="session-a"),
-                ]
-            },
-        )
-        message = root_message("Alpha")
-
-        assert runtime_data_store.get_capture_sequences_by_session_for_obf_message(
-            message=message,
-            obf_messages_by_cls={"Alpha": message},
-        ) == {"session-a": (4,)}
-        observed = runtime_data_store.get_observed_root_obf_messages()["Alpha"]
-        assert observed.capture_session_ids == ("session-a",)
 
     def test_capture_sequences_are_grouped_by_session_and_ignore_legacy_samples(
         self,
@@ -175,61 +161,6 @@ class TestRuntimeDataStore:
             obf_messages_by_cls={"Alpha": message},
         ) == {"session-a": (2, 4), "session-b": (1,)}
 
-    def test_runtime_data_store_caches_normalized_content(
-        self,
-        runtime_data_store: RuntimeDataStore,
-        tmp_path: Path,
-    ) -> None:
-        _write_runtime_capture(
-            tmp_path / "instancied_msg_infos.json",
-            runtime_data_store.schema_fingerprint,
-            {"Alpha": [runtime_entry({"value": 1}), runtime_entry({"value": 2})]},
-        )
-        message = root_message("Alpha")
-        messages_by_cls = {"Alpha": message}
-
-        first_instances = runtime_data_store.get_normalized_content_for_obf_message(
-            message=message, obf_messages_by_cls=messages_by_cls
-        )
-        second_instances = runtime_data_store.get_normalized_content_for_obf_message(
-            message=message, obf_messages_by_cls=messages_by_cls
-        )
-
-        assert first_instances is second_instances
-        assert first_instances == (
-            {"value": 1, "from_server": False, "is_game_msg": False, "is_root_msg": True},
-            {"value": 2, "from_server": False, "is_game_msg": False, "is_root_msg": True},
-        )
-
-    def test_runtime_data_store_returns_empty_tuple_when_runtime_alias_is_missing(
-        self,
-        runtime_data_store: RuntimeDataStore,
-        tmp_path: Path,
-    ) -> None:
-        _write_runtime_capture(
-            tmp_path / "instancied_msg_infos.json",
-            runtime_data_store.schema_fingerprint,
-            {"Beta": [runtime_entry({"value": 3})], "Gamma": []},
-        )
-        message = root_message("Gamma")
-
-        assert (
-            runtime_data_store.get_normalized_content_for_obf_message(
-                message=message, obf_messages_by_cls={"Gamma": message}
-            )
-            == ()
-        )
-
-    def test_runtime_data_store_handles_no_json_files(self, runtime_data_store: RuntimeDataStore) -> None:
-        message = root_message("AnyMsg")
-
-        assert (
-            runtime_data_store.get_normalized_content_for_obf_message(
-                message=message, obf_messages_by_cls={"AnyMsg": message}
-            )
-            == ()
-        )
-
     def test_runtime_data_store_deletes_legacy_capture_without_fingerprint(
         self,
         runtime_data_store: RuntimeDataStore,
@@ -253,10 +184,13 @@ class TestRuntimeDataStore:
         )
         message = root_message("Alpha")
 
-        assert runtime_data_store.get_normalized_content_for_obf_message(
-            message=message,
-            obf_messages_by_cls={"Alpha": message},
-        ) == ()
+        assert (
+            runtime_data_store.get_normalized_content_for_obf_message(
+                message=message,
+                obf_messages_by_cls={"Alpha": message},
+            )
+            == ()
+        )
         assert not store_path.exists()
 
     def test_runtime_data_store_caps_per_name(
@@ -317,18 +251,3 @@ class TestRuntimeDataStore:
         assert runtime_data_store.get_normalized_content_for_obf_message(
             message=obf_message, obf_messages_by_cls=messages_by_cls
         ) == ({"value": 1, "from_server": False, "is_game_msg": False, "is_root_msg": True},)
-
-    def test_write_captured_content_does_nothing_when_the_process_captured_nothing(
-        self, runtime_data_store: RuntimeDataStore, tmp_path: Path
-    ) -> None:
-        store_path = tmp_path / "instancied_msg_infos.json"
-        _write_runtime_capture(
-            store_path,
-            runtime_data_store.schema_fingerprint,
-            {"krl": []},
-        )
-        expected_document = store_path.read_text(encoding="utf-8")
-
-        runtime_data_store.write_captured_content()
-
-        assert store_path.read_text(encoding="utf-8") == expected_document

@@ -47,13 +47,10 @@ class MailAccountController(metaclass=Singleton):
     def _acquire_file_lock(self) -> FileLock:
         return acquire_file_lock(MAIL_ACCOUNTS_STORAGE_PATH, timeout_seconds=self._FILE_LOCK_TIMEOUT_SECONDS)
 
-    def _get_entry(self, account_email: str) -> MailAccountEntry | None:
-        return self._load().accounts.get(account_email)
-
     def get_config(
         self, account_email: str
     ) -> ImapAccountConfig | SmailProAccountConfig | ManualAccountConfig | None:
-        entry = self._get_entry(account_email)
+        entry = self._load().accounts.get(account_email)
         return entry.config if entry is not None else None
 
     def load_bad_state_emails(self) -> set[str]:

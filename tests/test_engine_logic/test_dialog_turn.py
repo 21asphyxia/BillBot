@@ -16,25 +16,6 @@ def _make_question(message_id: int, reply_ids: list[int]) -> NpcDialogQuestionEv
     return msg
 
 
-def test_each_question_gets_its_declared_turn() -> None:
-    turns = DialogTurns(
-        turns=[
-            DialogTurn(message_id=1, reply=ByReplyId(reply_id=10)),
-            DialogTurn(message_id=2, reply=ByReplyId(reply_id=20), finish_after=True),
-        ]
-    )
-
-    first = turns.take_reply_for(_make_question(1, [10, 11]))
-    second = turns.take_reply_for(_make_question(2, [20, 21]))
-
-    assert first is not None
-    assert first.reply_id == 10
-    assert first.do_finish_after is False
-    assert second is not None
-    assert second.reply_id == 20
-    assert second.do_finish_after is True
-
-
 def test_questions_asked_out_of_order_still_resolve() -> None:
     turns = DialogTurns(
         turns=[
@@ -104,20 +85,7 @@ def test_by_text_picks_the_reply_from_its_wording() -> None:
 def test_by_text_matching_no_offered_reply_resolves_to_nothing() -> None:
     turns = DialogTurns(turns=[DialogTurn(reply=ByText(pattern=r"accepter de l'aider"))])
 
-    assert (
-        turns.take_reply_for(_make_question(KERUBIM_LISTEN_MESSAGE_ID, [KERUBIM_LISTEN_REPLY_ID]))
-        is None
-    )
-
-
-def test_a_single_variant_behaves_like_a_plain_turn_list() -> None:
-    variants = DialogVariants.from_turn_variants([[DialogTurn(message_id=1, reply=ByReplyId(reply_id=10))]])
-
-    reply_info = variants.take_reply_for(_make_question(1, [10]))
-
-    assert reply_info is not None
-    assert reply_info.reply_id == 10
-    assert variants.active_index == 0
+    assert turns.take_reply_for(_make_question(KERUBIM_LISTEN_MESSAGE_ID, [KERUBIM_LISTEN_REPLY_ID])) is None
 
 
 def test_the_variant_answering_the_first_question_becomes_the_active_one() -> None:

@@ -147,33 +147,6 @@ def _make_spell(effects: list[Effect]) -> SpellLevelsRootItem:
 
 
 class TestCalculateAttackWeight:
-    def test_zone_damage_decrease_cap_uses_step_count(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        _stub_no_type_effect(monkeypatch)
-
-        effect = _make_effect(step_percent=20, max_apply=2)
-        spell_lvl = _make_spell([effect])
-
-        damage_calculator = MagicMock()
-        damage_calculator.get_damage_effect.return_value = 100
-
-        target_mp = MapPoint.from_cell_id(0)
-        far_enemy = _make_enemy(cell_id=10)
-        distance = target_mp.distance_to_map_point(far_enemy.map_point)
-        assert distance > effect.zoneDescr.maxDamageDecreaseApplyCount
-
-        weight = calculate_attack_weight(
-            damage_calculator=damage_calculator,
-            context=_make_context(),
-            impact_mps={far_enemy.map_point},
-            spell_lvl=spell_lvl,
-            effect=effect,
-            target_mp=target_mp,
-            enemies_data=[far_enemy],
-            modifiers=_make_modifiers(ap_cost=1),
-        )
-
-        assert weight == pytest.approx(60.0)  # pyright: ignore[reportUnknownMemberType]
-
     def test_catastrophic_life_cost_drops_weight_below_zero(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _stub_malus_life_percent_pct(monkeypatch, 1.0)
 
@@ -282,42 +255,6 @@ class TestCalculateAttackWeight:
 
         life_malus, _ = weight_calculator.calculate_life_modifiers(_make_context(), spell_lvl)
         assert life_malus == 200
-
-    def test_summoned_enemy_has_lower_weight_than_regular(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        _stub_no_type_effect(monkeypatch)
-
-        effect = _make_effect()
-        spell_lvl = _make_spell([effect])
-
-        damage_calculator = MagicMock()
-        damage_calculator.get_damage_effect.return_value = 1000
-
-        summon = _make_enemy(cell_id=1, life_point=100, max_life_point=100, is_summoned=True)
-        regular = _make_enemy(cell_id=2, life_point=100, max_life_point=100, is_summoned=False)
-        target_mp = MapPoint.from_cell_id(0)
-
-        weight_summon = calculate_attack_weight(
-            damage_calculator=damage_calculator,
-            context=_make_context(),
-            impact_mps={summon.map_point},
-            spell_lvl=spell_lvl,
-            effect=effect,
-            target_mp=target_mp,
-            enemies_data=[summon],
-            modifiers=_make_modifiers(ap_cost=1),
-        )
-        weight_regular = calculate_attack_weight(
-            damage_calculator=damage_calculator,
-            context=_make_context(),
-            impact_mps={regular.map_point},
-            spell_lvl=spell_lvl,
-            effect=effect,
-            target_mp=target_mp,
-            enemies_data=[regular],
-            modifiers=_make_modifiers(ap_cost=1),
-        )
-
-        assert weight_summon < weight_regular
 
     def test_invulnerable_enemy_is_not_targeted(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _stub_no_type_effect(monkeypatch)

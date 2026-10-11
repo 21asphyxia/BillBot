@@ -3,25 +3,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from DBDofusUnity.proto_mapper_assembly.helpers.proto_helpers import build_types_by_short_name
-from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCSMessage, DumpCSMessageField
-from DBDofusUnity.proto_mapper_assembly.interfaces.field_category import FieldCategoryEnum
+from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCSMessage
 from DBDofusUnity.proto_mapper_assembly.interfaces.pinned_pairs import PinnedPair, PinnedPairsConfig
 
-from .field_builders import make_field, number_field
-from .message_builders import make_message
+from .field_builders import number_field
 
 GAME_NS = "Com.Ankama.Dofus.Server.Game.Protocol.Game.Action"
 MAP_NS = "Com.Ankama.Dofus.Server.Game.Protocol.Gamemap"
 FIGHT_NS = "Com.Ankama.Dofus.Server.Game.Protocol.Fight"
-
-
-@dataclass(frozen=True)
-class ResolveMessageCase:
-    type_name: str
-    parent_message: DumpCSMessage
-    messages_by_cls: dict[str, DumpCSMessage]
-    expected: str | None
 
 
 @dataclass(frozen=True)
@@ -50,51 +39,6 @@ class SnapshotLayout:
 
 def message_lookup(*messages: DumpCSMessage) -> dict[str, DumpCSMessage]:
     return {message.composed_name: message for message in messages}
-
-
-def type_index(messages_by_cls: dict[str, DumpCSMessage]) -> dict[str, tuple[DumpCSMessage, ...]]:
-    return build_types_by_short_name(messages_by_cls)
-
-
-def proto_field(category: FieldCategoryEnum, normalized_type: str) -> DumpCSMessageField:
-    return make_field(category, normalized_type)
-
-
-def resolve_message_case(kind: str) -> ResolveMessageCase:
-    parent = make_message("Parent")
-    match kind:
-        case "direct":
-            child = make_message("ChildMsg")
-            return ResolveMessageCase("ChildMsg", parent, message_lookup(child), "ChildMsg")
-        case "namespace":
-            child = make_message("ChildMsg", namespace="GameNs")
-            parent = make_message("Parent", namespace="GameNs")
-            return ResolveMessageCase("ChildMsg", parent, message_lookup(child), "GameNs.ChildMsg")
-        case "parent":
-            child = make_message("ChildMsg", parent_name="ParentTypes")
-            parent = make_message("Parent", parent_name="ParentTypes")
-            return ResolveMessageCase("ChildMsg", parent, message_lookup(child), "ParentTypes.ChildMsg")
-        case "single_short_name":
-            child = make_message("ChildMsg")
-            return ResolveMessageCase("SomePkg.ChildMsg", parent, message_lookup(child), "ChildMsg")
-        case "ambiguous_namespace_match":
-            child_a = make_message("ChildMsg", namespace="NsA")
-            child_b = make_message("ChildMsg", namespace="NsB")
-            parent = make_message("Parent", namespace="NsA")
-            return ResolveMessageCase(
-                "SomePkg.ChildMsg",
-                parent,
-                message_lookup(child_a, child_b),
-                "NsA.ChildMsg",
-            )
-        case "ambiguous_no_match":
-            child_a = make_message("ChildMsg", namespace="NsA")
-            child_b = make_message("ChildMsg", namespace="NsB")
-            return ResolveMessageCase("SomePkg.ChildMsg", parent, message_lookup(child_a, child_b), None)
-        case "missing":
-            return ResolveMessageCase("NonExistent", parent, {}, None)
-        case _:
-            raise ValueError(kind)
 
 
 def pinned_resolve_case(kind: str) -> PinnedResolveCase:

@@ -7,22 +7,12 @@ from ankama_launcher_emulator.web._client import (
     credentials as credentials_module,
 )
 from ankama_launcher_emulator.web._client.browser_interactions import (
-    accept_cookies_if_present,
     detect_antibot_marker,
     is_waf_or_cloudfront_block,
 )
 from playwright.async_api import Page
 
 from tests.fixtures.launcher import FakeLocator
-
-
-class _FakeCookiePage:
-    def __init__(self, selector_counts: dict[str, int]) -> None:
-        self._selectors = {selector: FakeLocator(count) for selector, count in selector_counts.items()}
-        self.missing_locator = FakeLocator(0)
-
-    def locator(self, selector: str) -> FakeLocator:
-        return self._selectors.get(selector, self.missing_locator)
 
 
 class _FakeCredentialsPage:
@@ -40,24 +30,6 @@ class _FakeCredentialsPage:
 
 
 class TestBrowserInteractions(IsolatedAsyncioTestCase):
-    async def test_accept_cookies_clicks_first_present_consent_button(self) -> None:
-        page = _FakeCookiePage({"#didomi-notice-agree-button": 1})
-
-        accepted = await accept_cookies_if_present(cast(Page, page))
-
-        self.assertTrue(accepted)
-        page.locator("#didomi-notice-agree-button").click.assert_awaited_once_with(timeout=2_000)
-
-    async def test_accept_cookies_returns_false_without_known_consent_button(
-        self,
-    ) -> None:
-        page = _FakeCookiePage({})
-
-        accepted = await accept_cookies_if_present(cast(Page, page))
-
-        self.assertFalse(accepted)
-        page.missing_locator.click.assert_not_awaited()
-
     async def test_detect_antibot_marker_returns_known_markers(self) -> None:
         for html, expected_name, expected_marker in (
             ("<html>turnstile widget</html>", "turnstile", "turnstile"),

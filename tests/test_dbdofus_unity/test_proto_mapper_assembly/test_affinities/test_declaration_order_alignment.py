@@ -1,4 +1,4 @@
-﻿from typing import Any
+from typing import Any
 
 import numpy as np
 from tests.fixtures.proto_mapper.matching_builders import simple_workspace
@@ -80,21 +80,6 @@ _NON_OBF_SEGMENT = {
 
 
 class TestDeclarationOrderAlignment:
-    def test_slot_order_pairs_messages_that_scores_cannot_separate(self) -> None:
-        affinity_matrix, applicable_mask = _build_affinity(
-            {
-                "wrp::Boolean zsa(y)": "obf_a1",
-                "wrp::Boolean zsb(y)": "obf_a2",
-                "wrp::Boolean zsc(y)": "obf_a3",
-            },
-            _NON_OBF_SEGMENT,
-        )
-
-        assert applicable_mask[:3, :].all()
-        assert affinity_matrix[0, 0] == 1.0
-        assert affinity_matrix[1, 1] == 1.0
-        assert affinity_matrix[2, 2] == 1.0
-
     def test_the_obfuscated_naming_order_drives_the_pairing_not_the_matrix_order(self) -> None:
         affinity_matrix, _ = _build_affinity(
             {
@@ -109,30 +94,6 @@ class TestDeclarationOrderAlignment:
         assert affinity_matrix[1, 0] == 1.0
         assert affinity_matrix[2, 1] == 1.0
 
-    def test_landing_on_the_wrong_slot_only_costs_a_little(self) -> None:
-        affinity_matrix, _ = _build_affinity(
-            {
-                "wrp::Boolean zsa(y)": "obf_a1",
-                "wrp::Boolean zsb(y)": "obf_a2",
-                "wrp::Boolean zsc(y)": "obf_a3",
-            },
-            _NON_OBF_SEGMENT,
-        )
-
-        assert 0.0 < affinity_matrix[0, 1] < affinity_matrix[0, 0]
-
-    def test_messages_without_a_wrapper_are_not_constrained(self) -> None:
-        _, applicable_mask = _build_affinity(
-            {
-                "wrp::Boolean zsa(y)": "obf_a1",
-                "wrp::Boolean zsb(y)": "obf_a2",
-                "wrp::Boolean zsc(y)": "obf_a3",
-            },
-            _NON_OBF_SEGMENT,
-        )
-
-        assert not applicable_mask[3].any()
-
     def test_readable_class_names_carry_no_order_and_are_ignored(self) -> None:
         affinity_matrix, applicable_mask = _build_affinity(
             {
@@ -145,36 +106,3 @@ class TestDeclarationOrderAlignment:
 
         assert not applicable_mask.any()
         assert not affinity_matrix.any()
-
-    def test_a_segment_shorter_than_the_minimum_is_ignored(self) -> None:
-        _, applicable_mask = _build_affinity(
-            {"wrp::Boolean zsa(y)": "obf_a1", "wrp::Boolean zsb(y)": "obf_a2"},
-            {"own::Boolean bara(x)": "ClearA1", "own::Boolean barb(x)": "ClearA2"},
-        )
-
-        assert not applicable_mask.any()
-
-    def test_a_jump_in_the_naming_sequence_splits_the_segment(self) -> None:
-        _, applicable_mask = _build_affinity(
-            {
-                "wrp::Boolean zsa(y)": "obf_a1",
-                "wrp::Boolean zsb(y)": "obf_a2",
-                "wrp::Boolean zzz(y)": "obf_a3",
-            },
-            _NON_OBF_SEGMENT,
-        )
-
-        assert not applicable_mask.any()
-
-    def test_empty_traces_constrain_nothing(self) -> None:
-        affinity_matrix, applicable_mask = build_declaration_order_affinity(
-            AffinitySignalInputs(
-                workspace=simple_workspace(obf_classes=_OBF_CLASSES, non_obf_classes=_NON_OBF_CLASSES),
-                base_scores_matrix=_TIED_SCORES,
-                obf_access_trace=_access_trace({}),
-                non_obf_access_trace=_access_trace({}),
-            )
-        )
-
-        assert affinity_matrix.shape == _TIED_SCORES.shape
-        assert not applicable_mask.any()

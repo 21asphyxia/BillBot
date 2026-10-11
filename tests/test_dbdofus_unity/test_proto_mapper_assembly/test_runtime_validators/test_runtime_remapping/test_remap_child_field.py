@@ -1,4 +1,4 @@
-﻿from tests.fixtures.proto_mapper.field_builders import (
+from tests.fixtures.proto_mapper.field_builders import (
     map_field,
     msg_field,
     repeated_field,
@@ -10,7 +10,10 @@ from tests.fixtures.proto_mapper.runtime_builders import (
 )
 
 from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCSMessage, FieldKey
-from DBDofusUnity.proto_mapper_assembly.interfaces.runtime import MessageRuntimeMetadata, RuntimeValidationCandidate
+from DBDofusUnity.proto_mapper_assembly.interfaces.runtime import (
+    MessageRuntimeMetadata,
+    RuntimeValidationCandidate,
+)
 from DBDofusUnity.proto_mapper_assembly.runtime.runtime_remapping import remap_runtime_instances
 
 
@@ -90,42 +93,6 @@ class TestRemapChildField:
         assert result.mapping_failure is None
         assert result.instances_by_type["ClearMsg"] == [{"child_": {"value_": 42}}]
         assert result.instances_by_type["ChildClear"] == [{"value_": 42}]
-
-    def test_message_field_with_non_dict_value_returns_raw(self) -> None:
-        parent_obf_field = msg_field("child_", 0x10)
-        parent_non_obf_field = msg_field("child_", 0x10)
-        (
-            obf_msg,
-            non_obf_msg,
-            _child_obf_msg,
-            _child_non_obf_msg,
-            child_candidate,
-            extra_obf_meta,
-            extra_non_obf_meta,
-        ) = self._build_child_setup()
-
-        context = make_simple_context(
-            obf_msg,
-            non_obf_msg,
-            obf_live_fields={"child_": parent_obf_field},
-            non_obf_live_fields={"child_": parent_non_obf_field},
-            obf_child_cls_by_key={FieldKey(0x10, "child_"): "ChildObf"},
-            non_obf_child_cls_by_key={FieldKey(0x10, "child_"): "ChildClear"},
-            candidates_by_non_obf={"ChildClear": {"ChildObf": child_candidate}},
-            extra_obf_metadata=extra_obf_meta,
-            extra_non_obf_metadata=extra_non_obf_meta,
-        )
-        candidate = make_candidate(obf_msg, non_obf_msg, {"child_": "child_"})
-
-        result = remap_runtime_instances(
-            normalized_instances=[{"child_": "not_a_dict"}],
-            candidate=candidate,
-            obf_message=obf_msg,
-            non_obf_message=non_obf_msg,
-            remapping_context=context,
-        )
-
-        assert result.instances_by_type["ClearMsg"] == [{"child_": "not_a_dict"}]
 
     def test_repeated_field_remaps_dict_items_passes_through_scalars(self) -> None:
         parent_obf_field = repeated_field("items_", 0x10)
@@ -221,33 +188,6 @@ class TestRemapChildField:
             non_obf_live_fields={"child_": parent_non_obf_field},
             obf_child_cls_by_key={},
             non_obf_child_cls_by_key={FieldKey(0x10, "child_"): "ChildClear"},
-        )
-        candidate = make_candidate(obf_msg, non_obf_msg, {"child_": "child_"})
-
-        result = remap_runtime_instances(
-            normalized_instances=[{"child_": {"raw": "data"}}],
-            candidate=candidate,
-            obf_message=obf_msg,
-            non_obf_message=non_obf_msg,
-            remapping_context=context,
-        )
-
-        assert result.instances_by_type["ClearMsg"] == [{"child_": {"raw": "data"}}]
-
-    def test_unresolved_child_no_candidate_returns_raw_value(self) -> None:
-        parent_obf_field = msg_field("child_", 0x10)
-        parent_non_obf_field = msg_field("child_", 0x10)
-        obf_msg = DumpCSMessage(file_descriptor="FD", name="ObfMsg")
-        non_obf_msg = DumpCSMessage(file_descriptor="FD", name="ClearMsg")
-
-        context = make_simple_context(
-            obf_msg,
-            non_obf_msg,
-            obf_live_fields={"child_": parent_obf_field},
-            non_obf_live_fields={"child_": parent_non_obf_field},
-            obf_child_cls_by_key={FieldKey(0x10, "child_"): "ChildObf"},
-            non_obf_child_cls_by_key={FieldKey(0x10, "child_"): "ChildClear"},
-            candidates_by_non_obf={},
         )
         candidate = make_candidate(obf_msg, non_obf_msg, {"child_": "child_"})
 

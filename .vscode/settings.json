@@ -10,6 +10,16 @@
         "**/.venv/**": true,
         "**/__pycache__/**": true
     },
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/.jj": true,
+        "**/.DS_Store": true,
+        "**/Thumbs.db": true,
+        "build": true,
+        "dist": true,
+    },
     "search.exclude": {
         "**/DBDofusUnity/datas": true,
         "**/DBDofusUnity/Il2CppInspectorRedux": true,
@@ -17,5 +27,13 @@
         "**/DBDofusUnity/UABEA": true,
         "**/.venv": true,
         "**/__pycache__": true
-    }
+    },
+    "explorer.fileNesting.enabled": true,
+    "explorer.fileNesting.expand": false,
+    "explorer.fileNesting.patterns": {
+        "pyproject.toml": "uv.lock,ThisIsBillBot.spec, pyrightconfig.json",
+        ".env": ".env.*"
+    },
+    "workbench.editor.limit.enabled": true,
+    "workbench.editor.limit.value": 10
 }

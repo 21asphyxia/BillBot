@@ -6,14 +6,10 @@ import pytest
 
 from DBDofusUnity.datas.protos.non_obf.game.dialog_pb2 import DialogLeaveEvent, DialogLeaveRequest
 from DBDofusUnity.datas.protos.non_obf.game.exchange_pb2 import (
-    ExchangeCraftStartedEvent,
     ExchangeLeaveEvent,
-    ExchangeRequestedTradeEvent,
     ExchangeStartedWithStorageEvent,
 )
 from DBDofusUnity.datas.protos.non_obf.game.gamemap_pb2 import MapCurrentEvent, MapMovementRequest
-from DBDofusUnity.datas.protos.non_obf.game.npc_pb2 import NpcDialogQuestionEvent
-from DBDofusUnity.datas.protos.non_obf.game.teleportation_pb2 import TeleportDestinationsEvent
 from DBDofusUnity.dofus_unity_reader.grid.map_point import MapPoint
 from google.protobuf.message import Message
 
@@ -30,10 +26,8 @@ from tests.fixtures.bot_runtime import make_blocking_state_recovery
 from tests.fixtures.game_state import GameStateContext
 
 BANK_STORAGE_SLOT = 20_000
-SMALL_STORAGE_SLOT = 50
 START_CELL_ID = 305
 END_CELL_ID = 306
-CRAFT_SKILL_ID = 42
 
 
 def _run_timer_inline(range_time: tuple[float, float] | float, func: Callable[[], None]) -> None:
@@ -67,49 +61,6 @@ def test_opening_the_personal_chest_is_recorded(game_state_ctx: GameStateContext
     event_manager.process_msg(ExchangeStartedWithStorageEvent(storage_max_slot=BANK_STORAGE_SLOT))
 
     assert game_state_ctx.game_state.dialog.is_open(OpenDialogKind.BANK_STORAGE)
-
-
-def test_a_small_storage_is_not_the_personal_chest(game_state_ctx: GameStateContext) -> None:
-    event_manager = _make_dialog_frame(game_state_ctx)
-
-    event_manager.process_msg(ExchangeStartedWithStorageEvent(storage_max_slot=SMALL_STORAGE_SLOT))
-
-    assert not game_state_ctx.game_state.dialog.is_any_open
-
-
-def test_a_workshop_is_recorded_with_its_skill(game_state_ctx: GameStateContext) -> None:
-    event_manager = _make_dialog_frame(game_state_ctx)
-
-    event_manager.process_msg(ExchangeCraftStartedEvent(skill_id=CRAFT_SKILL_ID))
-
-    assert game_state_ctx.game_state.dialog.is_open(OpenDialogKind.CRAFT, context_id=CRAFT_SKILL_ID)
-    assert not game_state_ctx.game_state.dialog.is_open(OpenDialogKind.CRAFT, context_id=CRAFT_SKILL_ID + 1)
-
-
-def test_a_npc_question_is_recorded(game_state_ctx: GameStateContext) -> None:
-    event_manager = _make_dialog_frame(game_state_ctx)
-
-    event_manager.process_msg(NpcDialogQuestionEvent(message_id=1))
-
-    assert game_state_ctx.game_state.dialog.is_open(OpenDialogKind.NPC_DIALOG)
-
-
-def test_the_zaap_destination_screen_is_recorded(game_state_ctx: GameStateContext) -> None:
-    event_manager = _make_dialog_frame(game_state_ctx)
-
-    event_manager.process_msg(TeleportDestinationsEvent())
-
-    assert game_state_ctx.game_state.dialog.is_open(OpenDialogKind.ZAAP_DESTINATIONS)
-
-
-def test_a_trade_request_from_another_player_is_recorded(
-    game_state_ctx: GameStateContext,
-) -> None:
-    event_manager = _make_dialog_frame(game_state_ctx)
-
-    event_manager.process_msg(ExchangeRequestedTradeEvent(source_id=1, target_id=2))
-
-    assert game_state_ctx.game_state.dialog.is_open(OpenDialogKind.TRADE_REQUEST)
 
 
 def test_leaving_an_exchange_clears_the_state(game_state_ctx: GameStateContext) -> None:

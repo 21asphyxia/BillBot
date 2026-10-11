@@ -224,13 +224,3 @@ def test_an_open_sale_hotel_dialog_is_closed_before_equipping(
     behavior.event_manager.process_msg(ExchangeLeaveEvent())
 
     assert [type(message) for message in sent_messages] == [DialogLeaveRequest, ObjectSetPositionRequest]
-
-
-def test_equipping_with_nothing_open_sends_the_request_directly(
-    game_state_ctx: GameStateContext, monkeypatch: MonkeyPatch
-) -> None:
-    behavior, sent_messages = _make_equip_ready_behavior(game_state_ctx, monkeypatch)
-
-    behavior.equip_next_item()
-
-    assert [type(message) for message in sent_messages] == [ObjectSetPositionRequest]

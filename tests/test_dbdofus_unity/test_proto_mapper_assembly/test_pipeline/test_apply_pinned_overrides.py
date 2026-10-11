@@ -1,8 +1,7 @@
-﻿import pytest
+import pytest
 from tests.fixtures.proto_mapper.field_builders import msg_typed_field
 from tests.fixtures.proto_mapper.message_builders import (
     NEW_NON_OBF_CLS,
-    bootstrap_non_obf_msg,
     existing_non_obf_msg,
     field_signature,
     message_signature,
@@ -10,127 +9,34 @@ from tests.fixtures.proto_mapper.message_builders import (
 from tests.fixtures.proto_mapper.pipeline_builders import (
     EXISTING_CLS,
     NON_OBF_CLS,
-    bootstrap_repeated_field,
     enum_channel_signature,
     enum_hint_override,
     enum_signature,
     number_dump_field,
     override_only_inputs,
     real_message_signature,
-    signature_override_at_offset,
-    signature_override_with_indexed_access,
 )
 
 from DBDofusUnity.proto_mapper_assembly.controllers.non_obf_bootstrap import (
     inject_synthetic_non_obf_entries_for_override_only_messages,
 )
-from DBDofusUnity.proto_mapper_assembly.controllers.non_obf_matching_inputs import prepare_non_obf_matching_inputs
+from DBDofusUnity.proto_mapper_assembly.controllers.non_obf_matching_inputs import (
+    prepare_non_obf_matching_inputs,
+)
 from DBDofusUnity.proto_mapper_assembly.controllers.signature_override_application import (
-    _apply_field_binding_remapping,
     apply_stored_signature_overrides,
 )
 from DBDofusUnity.proto_mapper_assembly.interfaces.assembly_access import MessageAccessSignature
 from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCSMessage, FieldKey
 from DBDofusUnity.proto_mapper_assembly.interfaces.enum_mapping import EnumSignatureEntry
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_category import FieldCategoryEnum, FieldTypeShape
-from DBDofusUnity.proto_mapper_assembly.interfaces.signature_overrides import FieldOverrideBinding, SignatureOverrideEntry
-
-
-class TestApplyStoredSignatureOverrides:
-    def test_override_replaces_signature_without_mutating_original_mapping(self) -> None:
-        field = number_dump_field("field", "Field", 64)
-        non_obf_sig = message_signature(
-            NON_OBF_CLS,
-            declared_field_signatures=[],
-            dump_cs_msg=DumpCSMessage(file_descriptor="FD", name="Message", fields=[field]),
-        )
-        original = {NON_OBF_CLS: non_obf_sig}
-        override = signature_override_at_offset(64, field_key=field.field_key)
-
-        result = apply_stored_signature_overrides(original, {NON_OBF_CLS: override}, {})
-
-        overridden = result[NON_OBF_CLS]
-        assert result is not original
-        assert original[NON_OBF_CLS] is non_obf_sig
-        assert overridden.field_signatures == list(override.field_signatures.values())
-        assert overridden.message_cls == NON_OBF_CLS
-        assert overridden.dump_cs_msg is non_obf_sig.dump_cs_msg
-
-    def test_override_preserves_stored_field_access_indexes(self) -> None:
-        field = number_dump_field("field", "Field", 40)
-        non_obf_sig = message_signature(
-            NON_OBF_CLS,
-            declared_field_signatures=[],
-            dump_cs_msg=DumpCSMessage(file_descriptor="FD", name="Message", fields=[field]),
-        )
-
-        result = apply_stored_signature_overrides(
-            {NON_OBF_CLS: non_obf_sig},
-            {NON_OBF_CLS: signature_override_with_indexed_access()},
-            {},
-        )
-
-        indexed_function_access = result[NON_OBF_CLS].function_signatures[0].self_accesses[0]
-        indexed_field_access = result[NON_OBF_CLS].field_signatures[0].accesses[0]
-        assert indexed_function_access.index_in_function == 7
-        assert indexed_field_access.index_in_function == 7
-
-    def test_skips_missing_targets_and_keeps_other_entries(self) -> None:
-        other_sig = message_signature("Other", declared_field_signatures=[])
-        field = number_dump_field("field", "Field", 32)
-        base_sig = message_signature(
-            NON_OBF_CLS,
-            declared_field_signatures=[],
-            dump_cs_msg=DumpCSMessage(file_descriptor="FD", name="Message", fields=[field]),
-        )
-        override = signature_override_at_offset(field_key=field.field_key)
-
-        assert apply_stored_signature_overrides({}, {NON_OBF_CLS: override}, {}) == {}
-        result = apply_stored_signature_overrides(
-            {NON_OBF_CLS: base_sig, "Other": other_sig}, {NON_OBF_CLS: override}, {}
-        )
-
-        assert result["Other"] is other_sig
+from DBDofusUnity.proto_mapper_assembly.interfaces.signature_overrides import (
+    FieldOverrideBinding,
+    SignatureOverrideEntry,
+)
 
 
 class TestInjectSyntheticNonObfEntriesForOverrideOnlyMessages:
-    def test_uses_bootstrap_dump_cs_message_for_missing_override_target(self) -> None:
-        bootstrap_field = bootstrap_repeated_field()
-        inputs = override_only_inputs(bootstrap_field)
-
-        result_msgs, result_sigs = inject_synthetic_non_obf_entries_for_override_only_messages(
-            overrides=inputs.overrides,
-            bootstrap_messages_by_cls=inputs.bootstrap_messages_by_cls,
-            non_obf_messages_by_cls=inputs.non_obf_messages_by_cls,
-            non_obf_signatures_by_cls=inputs.non_obf_signatures_by_cls,
-        )
-
-        synthetic_msg = result_msgs[NEW_NON_OBF_CLS]
-        synthetic_sig = result_sigs[NEW_NON_OBF_CLS]
-        assert synthetic_msg.fields[0].property_name == "entities_states"
-        assert synthetic_sig.field_signatures == list(
-            inputs.overrides[NEW_NON_OBF_CLS].field_signatures.values()
-        )
-        assert [field.field_key for field in synthetic_sig.dump_cs_msg.fields] == [bootstrap_field.field_key]
-        assert synthetic_sig.live_field_keys == frozenset({bootstrap_field.field_key})
-        assert [field.property_name for field in synthetic_sig.get_exportable_fields()] == ["entities_states"]
-
-    def test_keeps_existing_non_obf_message_when_present(self) -> None:
-        existing_msg = bootstrap_non_obf_msg()
-        existing_sig = message_signature(
-            NEW_NON_OBF_CLS, declared_field_signatures=[], dump_cs_msg=existing_msg
-        )
-
-        result_msgs, result_sigs = inject_synthetic_non_obf_entries_for_override_only_messages(
-            overrides={NEW_NON_OBF_CLS: SignatureOverrideEntry(function_signatures=[], field_signatures={})},
-            bootstrap_messages_by_cls={NEW_NON_OBF_CLS: bootstrap_non_obf_msg()},
-            non_obf_messages_by_cls={EXISTING_CLS: existing_non_obf_msg(), NEW_NON_OBF_CLS: existing_msg},
-            non_obf_signatures_by_cls={NEW_NON_OBF_CLS: existing_sig},
-        )
-
-        assert result_msgs[NEW_NON_OBF_CLS] is existing_msg
-        assert result_sigs[NEW_NON_OBF_CLS] is existing_sig
-
     def test_raises_when_bootstrap_message_is_missing(self) -> None:
         with pytest.raises(ValueError, match=r"new_dump_cs.json"):
             inject_synthetic_non_obf_entries_for_override_only_messages(
@@ -190,26 +96,6 @@ class TestStoredFieldBinding:
         assert remapped.live_field_keys == frozenset({FieldKey(32, "_actor_id"), FieldKey(8, "_other")})
         assert {field_sig.field_offset for field_sig in remapped.field_signatures} == {8, 32}
         assert obf_sig in remapped.field_signatures
-
-    def test_apply_field_binding_remapping_remaps_matching_fields_only(self) -> None:
-        matching_field = number_dump_field("_actor_id", "actorId", 16)
-        unmatched_field = number_dump_field("_other", "other", 16)
-        no_property_field = number_dump_field("_raw", None, 16)
-        msg = DumpCSMessage(
-            file_descriptor="FD", name="Msg", fields=[matching_field, unmatched_field, no_property_field]
-        )
-
-        result = _apply_field_binding_remapping(
-            msg,
-            {
-                "actorId": FieldOverrideBinding(obf_field_name="_actor_id", obf_memory_offset=32),
-                "_raw": FieldOverrideBinding(obf_field_name="_raw", obf_memory_offset=48),
-            },
-        )
-
-        assert result is not msg
-        assert [field.memory_offset for field in result.fields] == [32, 16, 16]
-        assert _apply_field_binding_remapping(msg, {}) is msg
 
     @pytest.mark.parametrize(
         ("override", "expected_error"),

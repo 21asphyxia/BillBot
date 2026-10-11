@@ -1,10 +1,9 @@
-﻿from collections.abc import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 from tests.fixtures.proto_mapper.message_builders import (
     EMPTY_ACCESS_TRACE,
     build_message_lookup,
-    build_verified_mapping,
     field_signature,
     message_signature,
 )
@@ -15,7 +14,11 @@ from DBDofusUnity.proto_mapper_assembly.interfaces.assembly_access import (
     AccessTraceDocument,
     MessageAccessSignature,
 )
-from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCSMessage, DumpCSMessageField, FieldKey
+from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import (
+    DumpCSMessage,
+    DumpCSMessageField,
+    FieldKey,
+)
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_category import FieldCategoryEnum
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_mapping import FieldMappingContext
 from DBDofusUnity.proto_mapper_assembly.interfaces.capture_sequence_hints import CaptureSequenceHintsConfig
@@ -78,14 +81,6 @@ def root_signature(message_cls: str) -> MessageAccessSignature:
     )
 
 
-def nested_signature(message_cls: str, *, parent_name: str, name: str) -> MessageAccessSignature:
-    return message_signature(
-        message_cls,
-        declared_field_signatures=[],
-        dump_cs_msg=DumpCSMessage(file_descriptor="FD", name=name, parent_name=parent_name),
-    )
-
-
 def simple_workspace(
     *,
     obf_classes: tuple[str, ...] = ("obf_alpha", "obf_beta"),
@@ -96,18 +91,6 @@ def simple_workspace(
         non_obf_signatures=[simple_signature(message_cls) for message_cls in non_obf_classes],
         obf_messages_by_cls={},
         non_obf_messages_by_cls={},
-    )
-
-
-def prepared_scores_from_matrix(scores_matrix: np.ndarray) -> PreparedScoreData:
-    zeros = np.zeros_like(scores_matrix)
-    return PreparedScoreData(
-        final_scores_matrix=scores_matrix,
-        candidate_eligibility_mask=np.ones_like(scores_matrix, dtype=bool),
-        structure_scores_matrix=zeros,
-        assembly_scores_matrix=zeros,
-        runtime_confidence_by_pair={},
-        file_descriptor_similarity_by_pair={},
     )
 
 
@@ -203,69 +186,6 @@ def child_message_mapping_signatures() -> tuple[
         obf_signature,
         build_message_lookup([non_obf_message, non_obf_child]),
         build_message_lookup([obf_message, obf_child]),
-    )
-
-
-def prospective_child_constraint_workspace() -> MatchingWorkspace:
-    obf_parent_message = DumpCSMessage(
-        file_descriptor="GameReflection",
-        name="obf_parent",
-        fields=[message_field(clr_type="obf_child", field_name="child_", property_name="Child")],
-    )
-    obf_child_message = DumpCSMessage(file_descriptor="GameReflection", name="obf_child")
-    clear_parent_message = DumpCSMessage(
-        file_descriptor="GameReflection",
-        name="ClearParent",
-        fields=[message_field(clr_type="ClearChild", field_name="child_", property_name="Child")],
-    )
-    clear_child_message = DumpCSMessage(file_descriptor="GameReflection", name="ClearChild")
-    other_clear_message = DumpCSMessage(file_descriptor="GameReflection", name="OtherClear")
-
-    return build_matching_workspace(
-        obf_signatures=[
-            message_signature(
-                "obf_parent",
-                declared_field_signatures=[declared_field_signature(MESSAGE_SHAPE)],
-                dump_cs_msg=obf_parent_message,
-            ),
-            message_signature("obf_child", declared_field_signatures=[], dump_cs_msg=obf_child_message),
-        ],
-        non_obf_signatures=[
-            message_signature(
-                "ClearParent",
-                declared_field_signatures=[declared_field_signature(MESSAGE_SHAPE)],
-                dump_cs_msg=clear_parent_message,
-            ),
-            message_signature("ClearChild", declared_field_signatures=[], dump_cs_msg=clear_child_message),
-            message_signature("OtherClear", declared_field_signatures=[], dump_cs_msg=other_clear_message),
-        ],
-        obf_messages_by_cls=build_message_lookup([obf_parent_message, obf_child_message]),
-        non_obf_messages_by_cls=build_message_lookup(
-            [clear_parent_message, clear_child_message, other_clear_message]
-        ),
-    )
-
-
-def select_best_for_test(
-    *,
-    obf_signatures: list[MessageAccessSignature],
-    non_obf_signatures: list[MessageAccessSignature],
-    scores_matrix: np.ndarray,
-    roots_only: bool,
-) -> SelectedSignaturePair | None:
-    workspace = build_matching_workspace(
-        obf_signatures=obf_signatures,
-        non_obf_signatures=non_obf_signatures,
-        obf_messages_by_cls={},
-        non_obf_messages_by_cls={},
-    )
-    return select_best_signature_pair(
-        workspace=workspace,
-        scores_matrix=scores_matrix,
-        available_non_obf=list(workspace.non_obf_signatures),
-        available_obf=list(workspace.obf_signatures),
-        roots_only=roots_only,
-        pinned_pairs_config=build_verified_mapping(),
     )
 
 

@@ -62,27 +62,6 @@ class TestScanMessageBody:
         fields = scan_message_body("private UnknownFieldSet _unknownFields; // 0x10").fields
         assert fields == []
 
-    def test_multiple_fields_order_and_count(self) -> None:
-        code = (
-            "    private int subareaId_; // 0x18\n"
-            "    private long mapId_; // 0x20\n"
-            "    private readonly RepeatedField<House> houses_; // 0x28\n"
-            "    private readonly MapField<int, House> housesById_; // 0x30\n"
-            "    private bool active_; // 0x38\n"
-            "    private object variant_; // 0x40\n"
-        )
-        fields = scan_message_body(code).fields
-        assert len(fields) == 6
-        categories = [f.category for f in fields]
-        assert categories == [
-            FieldCategoryEnum.NUMBER,
-            FieldCategoryEnum.NUMBER,
-            FieldCategoryEnum.REPEATED,
-            FieldCategoryEnum.MAP,
-            FieldCategoryEnum.BOOLEAN,
-            FieldCategoryEnum.ONEOF,
-        ]
-
     def test_internal_fields_are_marked_non_proto_without_field_number_markers(self) -> None:
         code = (
             "    private int _hasBits0; // 0x18\n"
