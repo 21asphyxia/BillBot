@@ -1,5 +1,3 @@
-# Bill
-
 Windows bot for Dofus Unity with harvesting, combat, crafting, multiple accounts,
 and session scheduling. Built with Python, PyQt6, and FluentWidgets.
 
