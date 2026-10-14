@@ -1,3 +1,5 @@
+Bot Dofus Unity ( Dofus 3 ) Bot Complet : Farming / Combat / HDV / Craft
+
 Windows bot for Dofus Unity with harvesting, combat, crafting, multiple accounts,
 and session scheduling. Built with Python, PyQt6, and FluentWidgets.
 
