@@ -23,6 +23,19 @@ and session scheduling. Built with Python, PyQt6, and FluentWidgets.
 Extract the Windows archive from the [latest release](https://github.com/Valentin-alix/BillBot/releases/latest)
 and run `BillBot.exe`.
 
+If Microsoft Defender quarantines `BillBot.exe`, add an exclusion for a dedicated
+BillBot installation folder before extracting the archive again:
+
+1. Create the installation folder, for example `C:\BillBot`.
+2. Open **Windows Security → Virus & threat protection → Manage settings →
+   Exclusions → Add or remove exclusions → Add an exclusion → Folder** and select it.
+3. Extract the release ZIP into that folder and run `BillBot.exe`.
+
+Only do this for a release you trust: Defender's real-time scanning will exclude
+that folder. Keep the exclusion limited to BillBot's folder; do not exclude all
+Downloads or disable antivirus protection.
+[Microsoft's exclusion instructions](https://support.microsoft.com/en-gb/windows/security/threat-malware-protection/virus-and-threat-protection-in-the-windows-security-app).
+
 ### From source
 
 Requirements: **Windows**, **Python 3.12**, **Git LFS**, and **uv**.
