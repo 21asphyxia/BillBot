@@ -22,6 +22,7 @@ dist/
 *.spec
 !BillBot.spec
 *.egg-info/
+private
 
 # Local environment and editor settings
 .env
@@ -31,6 +32,7 @@ dist/
 node_modules/
 
 # Runtime data, diagnostics, and local exports
+/.update-maj.lock
 resources/datas/*.json
 resources/sessions/*.json
 resources/bot_player_infos.json

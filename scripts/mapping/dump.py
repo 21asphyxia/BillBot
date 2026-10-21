@@ -99,8 +99,8 @@ def update_protos(*, use_obf: bool, obf_dir: Path | None = None, force: bool = F
 
         if use_obf:
             if not force and not does_dump_cs_changed_since_last_run(target):
+                _record_game_assembly_mtime(target)
                 return
-            _record_dump_cs_hash(target)
 
         if target.proto_output.is_file():
             python_output_folder = target.proto_output.parent
@@ -117,14 +117,16 @@ def update_protos(*, use_obf: bool, obf_dir: Path | None = None, force: bool = F
 
         if use_obf and obf_dir is not None:
             # Archived tracing must skip live-workspace steps that clear pins and overwrite current mappings.
+            _record_dump_cs_hash(target)
             _record_game_assembly_mtime(target)
             return
 
         if use_obf:
             _clear_mapping_inputs_before_pipeline()
-            _record_game_assembly_mtime(target)
 
             run_pipeline(do_load_pinned_pair=True)
+            _record_dump_cs_hash(target)
+            _record_game_assembly_mtime(target)
     else:
         print(f"{target.game_assembly} unchanged since last dump; skipping mapping-input reset")
 

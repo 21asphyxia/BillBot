@@ -7,16 +7,12 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "AnkamaLauncherEmulator"))
 
-from pydantic import TypeAdapter
-
 from ankama_launcher_emulator.interfaces.ankama_release import ReleaseJson
 from ankama_launcher_emulator.utils.environment import RELEASE_JSON_PATH
-from DBDofusUnity.consts import OBF_GAME_DIR
-from src.services.game_version import GameVersion, VERSION_PATH
+from filelock import FileLock
+from pydantic import TypeAdapter
 
-from scripts.mapping.synchronize_protos import (
-    synchronize_non_obf_mapping_artifacts,
-)
+from DBDofusUnity.consts import OBF_GAME_DIR
 from scripts.mapping.dump import (
     _build_proto_dump_target,
     gen_python_from_protoc,
@@ -26,6 +22,10 @@ from scripts.mapping.export_signature_overrides import (
     run_export_signature_overrides,
 )
 from scripts.mapping.ida_tracer_lib.main import run_ida_script
+from scripts.mapping.synchronize_protos import (
+    synchronize_non_obf_mapping_artifacts,
+)
+from src.services.game_version import VERSION_PATH, GameVersion
 
 
 def gen_python(_):
@@ -58,13 +58,14 @@ def _read_update_game_version() -> str:
 def new_maj_update_command(_: argparse.Namespace) -> None:
     from DBDofusUnity.dofus_unity_reader.get_datas import update_all_datas
 
-    version = _read_update_game_version()
-    update_all_datas()
-    update_protos(use_obf=True)
-    if _read_update_game_version() != version:
-        raise RuntimeError("The installed Dofus version changed during update-maj. Run update-maj again.")
-    VERSION_PATH.write_text(f"{version}\n", encoding="utf-8")
-    print(f"Bot-compatible VERSION updated to {version}")
+    with FileLock(ROOT / ".update-maj.lock"):
+        version = _read_update_game_version()
+        update_all_datas()
+        update_protos(use_obf=True)
+        if _read_update_game_version() != version:
+            raise RuntimeError("The installed Dofus version changed during update-maj. Run update-maj again.")
+        VERSION_PATH.write_text(f"{version}\n", encoding="utf-8")
+        print(f"Bot-compatible VERSION updated to {version}")
 
 
 def run_ida_script_command(arguments: argparse.Namespace):

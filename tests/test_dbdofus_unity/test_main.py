@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+from filelock import FileLock
 from pydantic import ValidationError
 
 from scripts.maintenance import main
@@ -20,6 +21,7 @@ def update_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path,
     monkeypatch.setattr(main, "RELEASE_JSON_PATH", str(release))
     monkeypatch.setattr(main, "OBF_GAME_DIR", tmp_path)
     monkeypatch.setattr(main, "VERSION_PATH", version)
+    monkeypatch.setattr(main, "ROOT", tmp_path)
     return release, version
 
 
@@ -31,12 +33,16 @@ def test_update_maj_writes_version_after_success(update_files: tuple[Path, Path]
         assert version.read_bytes() == previous
 
     with (
-        patch("DBDofusUnity.dofus_unity_reader.get_datas.update_all_datas", side_effect=check_previous_version),
+        patch(
+            "DBDofusUnity.dofus_unity_reader.get_datas.update_all_datas", side_effect=check_previous_version
+        ),
         patch.object(main, "update_protos", side_effect=check_previous_version),
     ):
         main.main(["update-maj"])
 
     assert version.read_text(encoding="utf-8") == "6.0_3.6.11.15\n"
+    with FileLock(version.parent / ".update-maj.lock", timeout=0):
+        pass
 
 
 @pytest.mark.parametrize("failed_step", ["data", "protos"])
@@ -53,11 +59,14 @@ def test_update_maj_preserves_version_on_failure(update_files: tuple[Path, Path]
             main.main(["update-maj"])
 
     assert version.read_bytes() == previous
+    with FileLock(version.parent / ".update-maj.lock", timeout=0):
+        pass
 
 
 @pytest.mark.parametrize("invalid_release", ["missing", "broken", "version", "location"])
 def test_update_maj_rejects_invalid_release_before_updates(
-    update_files: tuple[Path, Path], invalid_release: str,
+    update_files: tuple[Path, Path],
+    invalid_release: str,
 ) -> None:
     release, version = update_files
     previous = version.read_bytes()
@@ -66,10 +75,16 @@ def test_update_maj_rejects_invalid_release_before_updates(
     elif invalid_release == "broken":
         release.write_text("broken")
     else:
-        release.write_text(json.dumps({
-            "location": str(release.parent / "other" if invalid_release == "location" else release.parent),
-            "version": "1.0.4" if invalid_release == "version" else "6.0_3.6.11.15",
-        }))
+        release.write_text(
+            json.dumps(
+                {
+                    "location": str(
+                        release.parent / "other" if invalid_release == "location" else release.parent
+                    ),
+                    "version": "1.0.4" if invalid_release == "version" else "6.0_3.6.11.15",
+                }
+            )
+        )
     with (
         patch("DBDofusUnity.dofus_unity_reader.get_datas.update_all_datas") as data,
         patch.object(main, "update_protos") as protos,
@@ -106,7 +121,9 @@ class TestSynchronizeProtosCommand:
         with (
             patch("scripts.maintenance.main.gen_python") as gen_python,
             patch("scripts.maintenance.main.synchronize_non_obf_mapping_artifacts") as synchronize_artifacts,
-            patch("scripts.maintenance.main.run_export_signature_overrides") as run_export_signature_overrides,
+            patch(
+                "scripts.maintenance.main.run_export_signature_overrides"
+            ) as run_export_signature_overrides,
             patch(_RUN_PIPELINE) as run_pipeline,
         ):
             arguments.handler(arguments)
